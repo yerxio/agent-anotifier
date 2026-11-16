@@ -12,8 +12,6 @@
 #     donetoast.ps1 -Id upload -Done | -Failed [-Message "..."]          -> turns it into a done / failed card
 #   -App Codex -> show Codex's name and icon in the header (default: Claude).
 #   -AcknowledgeLabel '知道了' -> add a named button that dismisses the card.
-#   -ProjectName / -Cwd (anotifier) -> clicking the card focuses that project's window first;
-#     -ClickToFocus false turns that off and leaves the click as a plain dismiss.
 # When called from a sandboxed agent, run it with the sandbox off, or the card can't reach your desktop.
 param(
   [string]$Title,
@@ -26,10 +24,7 @@ param(
   [switch]$Done,
   [switch]$Progress,
   [string]$App = 'Claude',
-  [string]$AcknowledgeLabel = '',
-  [string]$ProjectName = '',
-  [string]$Cwd = '',
-  [string]$ClickToFocus = 'true'
+  [string]$AcknowledgeLabel = ''
 )
 
 $root = $PSScriptRoot
@@ -61,26 +56,7 @@ if (-not $Id) {
   if (-not $Title) { throw '-Title is required' }
   $f = if ($Failed) { ' -Failed' } elseif ($Waiting) { ' -Waiting' } else { '' }
   $ack = if ($AcknowledgeLabel) { " -AcknowledgeLabel $(& $dec $AcknowledgeLabel)" } else { '' }
-  # Base64 like every other string that crosses into the detached process: a
-  # project name or a path may hold quotes, spaces, & or non-ASCII.
-  $foc = ''
-  if ($ClickToFocus -ne 'false') {
-    if ($ProjectName) { $foc += " -ProjectName $(& $dec $ProjectName)" }
-    if ($Cwd) { $foc += " -Cwd $(& $dec $Cwd)" }
-    # The agent's window handle, resolved HERE and not in the card: this
-    # process still sits in the chain that leads up to the terminal, while the
-    # card is detached through Win32_Process.Create and its parent is WMI. A
-    # handle of 0 just means the card falls back to matching window titles.
-    if ($ProjectName -or $Cwd) {
-      $hwnd = 0
-      try {
-        $helper = Join-Path $root '..\ancestor-hwnd.ps1'
-        if (Test-Path -LiteralPath $helper) { . $helper; $hwnd = Get-AncestorWindowHandle }
-      } catch { $hwnd = 0 }
-      if ($hwnd -ne 0) { $foc += " -Hwnd $hwnd" }
-    }
-  }
-  return "started pid=$(Launch "& '$root\toast.ps1' -Title $(& $dec $Title) -Message $(& $dec "$Message") -App $(& $dec $App)$f$ack$foc")"
+  return "started pid=$(Launch "& '$root\toast.ps1' -Title $(& $dec $Title) -Message $(& $dec "$Message") -App $(& $dec $App)$f$ack")"
 }
 
 # Live card: write the state file; open a card only if none is showing for this id yet

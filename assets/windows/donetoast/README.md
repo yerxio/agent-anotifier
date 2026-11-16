@@ -18,28 +18,7 @@ part of this repo and are edited here.
 
 ## Local modifications
 
-Two changes against upstream: a named dismiss button, and click-to-focus.
-
-### Click-to-focus
-
-- `donetoast.ps1` — `-ProjectName`, `-Cwd` and `-ClickToFocus`. It resolves the
-  agent's window handle through `../ancestor-hwnd.ps1` and forwards all three to
-  the card. The handle has to be resolved *here*: this process is still a
-  descendant of the terminal, while the card it starts is detached through
-  `Win32_Process.Create` and has WMI for a parent.
-- `toast.ps1` — `-ProjectName`, `-Cwd` and `-Hwnd`. Clicking the card body runs
-  `../focus-window.ps1` with the same argument the `agentfocus://` protocol
-  handler receives, so the window is activated through ShowWindow /
-  BringWindowToTop / SwitchToThisWindow / SetForegroundWindow. It runs in the
-  card's own process on purpose: the clicked card owns the foreground window, so
-  Windows lets it hand focus over, where a detached child would be refused.
-  Clicking the acknowledgement button stays dismiss-only.
-
-Window titles alone are not enough to find the window — a terminal tab is
-usually named by the shell or the agent, not after the project — which is why
-the handle matters. What no backend can do is pick the right *tab*: Windows
-Terminal exposes no public mapping from `WT_SESSION` to a window or tab index,
-so the target is the window.
+Both scripts carry one change against upstream: a named dismiss button.
 
 - `toast.ps1` — new `-AcknowledgeLabel <text>` parameter. When set, the card widens
   (360×78 instead of 283×70, content inset to 86 px) and renders a `Acknowledge`
@@ -49,10 +28,9 @@ so the target is the window.
 - `donetoast.ps1` — accepts `-AcknowledgeLabel` and passes it through to `toast.ps1`
   base64-encoded, the same way it already passes the title and message.
 
-`src/platforms/windows.mjs` calls `donetoast.ps1` with `-AcknowledgeLabel 知道了`
-and, unless `toast.clickToFocus` is off, the project name and cwd. When pulling
-in a new upstream version, re-apply both changes — the test
-`tests/platforms-donetoast.test.mjs` fails if they are missing.
+`src/platforms/windows.mjs` calls `donetoast.ps1` with `-AcknowledgeLabel 知道了`.
+When pulling in a new upstream version, re-apply these two changes — the test
+`tests/platforms-codex-donetoast.test.mjs` fails if they are missing.
 
 ## What ships here
 

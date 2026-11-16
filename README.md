@@ -69,7 +69,7 @@ That's it. The setup wizard detects your platform and installed AI tools, wires 
 - **Webhook notifications** -- Slack, Discord, Telegram, or any HTTP endpoint, with an optional auth header
 - **Rich notification content** -- Claude Code toasts and webhooks show what the agent actually said or asked, not a generic line
 - **Terminal bell** -- audible ding in the terminal that launched the agent (works over SSH/tmux)
-- **Click-to-focus** -- clicking a notification brings the agent's terminal or IDE window back to the front, restoring it if it was minimized. A Donetoast card finds that window by the handle its launcher reads off the process chain, so it works even when the terminal tab is named something other than the project; its `知道了` button dismisses without jumping. Picking the right *tab* is not possible on any backend -- Windows Terminal publishes no mapping from `WT_SESSION` to a tab
+- **Click-to-focus** -- supported Windows native toasts can jump back to the terminal or VS Code window; a Donetoast card has an explicit dismiss button instead, with task navigation planned separately
 - **Turn length** -- "task complete" says how long the turn took (`took 4m 12s`), and `minDurationSeconds` can skip quick turns (Claude Code, Codex, Gemini CLI)
 - **Codex approval alerts** -- get notified the instant Codex asks for permission, not just when it finishes
 - **Per-tool branded icons** -- each tool gets its own logo in the notification
