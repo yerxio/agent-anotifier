@@ -24,7 +24,7 @@ const pkg = require('../package.json');
 // Keyed by toastPlatform(): WSL sends a Windows toast through interop, so it
 // must not be reported as notify-send.
 export const PLATFORM_DISPLAY = {
-  win32: { platform: 'Windows', toast: 'Donetoast cards (Codex) + BurntToast (other tools)' },
+  win32: { platform: 'Windows', toast: 'Donetoast (Codex) + BurntToast' },
   darwin: { platform: 'macOS', toast: 'osascript' },
   wsl: { platform: 'WSL', toast: 'Windows toast (WSL interop)' },
   linux: { platform: 'Linux', toast: 'notify-send' },
@@ -97,10 +97,19 @@ export async function run() {
   }
 
   const { platform: platLabel, toast: toastLabel } = PLATFORM_DISPLAY[toastPlatform()];
-  const toastExtra = config.toast?.clickToFocus ? c.muted(' (native-toast click-to-focus)') : '';
-
   const toastOff = toastOffNoBackendLabel(config, toastPlatform());
+
+  // Windows names two backends, so the row has no space left for the
+  // click-to-focus note — and the note is only true of the native toasts
+  // anyway: the Codex card is dismissed by its own button. It goes on a
+  // continuation line, the way the ntfy URL does below.
+  const focusOn = !toastOff && config.toast?.clickToFocus;
+  const twoBackends = toastPlatform() === 'win32';
+  const toastExtra = focusOn && !twoBackends ? c.muted(' (click-to-focus)') : '';
   const toastValue = toastOff ? c.warn(`toast: ${toastOff}`) : `${toastLabel}${toastExtra}`;
+  const toastFocusNote = focusOn && twoBackends
+    ? `${''.padEnd(15)} ${c.muted('click-to-focus on BurntToast')}`
+    : null;
 
   const ntfyValue = config.ntfy?.enabled && config.ntfy?.topic
     ? c.success(`${config.ntfy.server}/${config.ntfy.topic}`)
@@ -153,6 +162,7 @@ export async function run() {
     '',
     kv('Platform', platLabel),
     kv('Toast', toastValue),
+    ...(toastFocusNote ? [toastFocusNote] : []),
     kv('Sentry', sentryValue),
     kv('Snooze', snoozeValue),
     kv('Quiet hours', quietValue),
@@ -177,7 +187,7 @@ export async function run() {
   ];
 
   console.log();
-  console.log(box(lines, { padding: 2, width: 52 }));
+  console.log(box(lines, { padding: 2, minWidth: 52 }));
 
   // Recent hook errors — the hook path never crashes the host agent, so this is
   // where silent failures surface.

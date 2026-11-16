@@ -126,9 +126,13 @@ export function askYN(rl, question, defaultYes = true, { eof = defaultYes } = {}
 // ── Box Drawing ─────────────────────────────────────────────────────
 const BOX = { tl: '╭', tr: '╮', bl: '╰', br: '╯', h: '─', v: '│', lj: '├', rj: '┤' };
 
-export function box(lines, { padding = 1, borderColor = c.muted, width = 0 } = {}) {
+// minWidth is a floor, never a cap. A fixed width clipped the fill to zero for
+// any longer row and pushed that row's right border past the frame — one long
+// value (a backend label, an ntfy URL, a tool's event list) visibly broke the
+// box. Growing the frame to the longest row keeps every border aligned.
+export function box(lines, { padding = 1, borderColor = c.muted, minWidth = 0 } = {}) {
   const pad = ' '.repeat(padding);
-  const maxContent = width || Math.max(...lines.map(l => stripAnsi(l).length));
+  const maxContent = Math.max(minWidth, ...lines.map(l => stripAnsi(l).length));
   const innerWidth = maxContent + padding * 2;
 
   const top    = borderColor(`${BOX.tl}${BOX.h.repeat(innerWidth)}${BOX.tr}`);
