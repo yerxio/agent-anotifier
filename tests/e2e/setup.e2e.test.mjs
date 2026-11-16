@@ -168,9 +168,9 @@ describe('setup with partial / no tools installed', () => {
 });
 
 describe('Windows card backend', () => {
-  // The cards carry every desktop notification; BurntToast is only what
-  // `toast.cards: false` falls back to, so setup readies both and says so.
-  it('reports cards for the detected tool and still readies BurntToast as the fallback', (t) => {
+  // Every desktop notification is a card, and a card needs only what ships with
+  // Windows — so setup installs nothing: no PowerShell 7 probe, no BurntToast.
+  it('installs nothing: no PowerShell 7 probe and no BurntToast', (t) => {
     if (process.platform !== 'win32') return t.skip('Windows setup behavior');
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'aan-cards-'));
     fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
@@ -179,9 +179,36 @@ describe('Windows card backend', () => {
       const res = runNode(['cli/index.mjs', 'setup'], { home, stdin: 'n\n', extraEnv: setupEnv });
       assert.equal(res.status, 0, `setup exited non-zero: ${res.stderr}`);
       assert.match(res.stdout, /Donetoast cards ready for every tool/);
+      assert.match(res.stdout, /Nothing to install/);
       assert.match(res.stdout, /Codex CLI \(Donetoast cards\)/);
-      assert.match(res.stdout, /BurntToast module ready \(fallback when toast\.cards is off\)/);
+      assert.doesNotMatch(res.stdout, /BurntToast/);
+      assert.doesNotMatch(res.stdout, /PowerShell 7/);
+      // The toast channel stays on without any native backend.
+      const cfg = readJSON(path.join(home, '.anotifier', 'config.json'));
+      assert.notEqual(cfg.toast.enabled, false);
+      assert.equal(cfg.toast.disabledBySetup, undefined);
       assert.match(readJSON(path.join(home, '.codex', 'hooks.json')).hooks.Stop[0].hooks[0].command, /notify\.mjs/);
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  // The one case that still needs the native backend: the user turned cards off.
+  it('with toast.cards off, sets up the native toast instead and stops claiming cards', (t) => {
+    if (process.platform !== 'win32') return t.skip('Windows setup behavior');
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'aan-native-'));
+    fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
+    fs.mkdirSync(path.join(home, '.anotifier'), { recursive: true });
+    fs.writeFileSync(path.join(home, '.anotifier', 'config.json'), JSON.stringify({ toast: { cards: false } }));
+    const setupEnv = seedSetupResources(home);
+    try {
+      const res = runNode(['cli/index.mjs', 'setup'], { home, stdin: 'n\n', extraEnv: setupEnv });
+      assert.equal(res.status, 0, `setup exited non-zero: ${res.stderr}`);
+      assert.match(res.stdout, /toast\.cards is off/);
+      assert.match(res.stdout, /BurntToast module ready/);
+      assert.doesNotMatch(res.stdout, /\(Donetoast cards\)/);
+      // The choice survives the run.
+      assert.equal(readJSON(path.join(home, '.anotifier', 'config.json')).toast.cards, false);
     } finally {
       fs.rmSync(home, { recursive: true, force: true });
     }

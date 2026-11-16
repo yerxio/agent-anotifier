@@ -72,3 +72,26 @@ test('warns (never throws) when the probe itself fails', () => {
   assert.equal(r.status, 'warn');
   assert.match(r.detail, /probe failed/);
 });
+
+// --- the card backend: what doctor reports while Donetoast cards are on ------
+import { windowsCardBackendCheck } from '../cli/doctor-checks.mjs';
+
+test('cards on + bundle present: ok on Windows PowerShell alone, pwsh and BurntToast never consulted', () => {
+  const asked = [];
+  const r = windowsCardBackendCheck({ toast: {} }, { hasBin: (b) => { asked.push(b); return b === 'powershell'; }, bundleReady: () => true });
+  assert.equal(r.status, 'ok');
+  assert.match(r.detail, /Donetoast cards/);
+  assert.deepEqual(asked, ['powershell'], 'a machine whose cards work must not be failed for lacking pwsh');
+});
+
+test('cards on but no powershell.exe: fail, since the card cannot be spawned', () => {
+  const r = windowsCardBackendCheck({}, { hasBin: () => false, bundleReady: () => true });
+  assert.equal(r.status, 'fail');
+  assert.match(r.detail, /powershell\.exe/);
+});
+
+test('cards off, or the bundle missing: null, so the native backend is checked instead', () => {
+  const present = { hasBin: () => true, bundleReady: () => true };
+  assert.equal(windowsCardBackendCheck({ toast: { cards: false } }, present), null);
+  assert.equal(windowsCardBackendCheck({}, { hasBin: () => true, bundleReady: () => false }), null);
+});

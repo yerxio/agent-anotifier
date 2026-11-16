@@ -1,7 +1,10 @@
 // cli/doctor-checks.mjs — pure diagnostic logic for `anotifier doctor`. No console I/O;
 // returns an array of { id, channel, status, detail, hint }. Each check is
 // best-effort and never throws; runChecks aggregates them.
+import fs from 'node:fs';
 import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { notificationAuthState, verifyDelivery, ncDbPath } from '../src/platforms/macos-delivery.mjs';
 import { toastPlatform } from '../src/platforms/index.mjs';
@@ -73,7 +76,28 @@ function toastBackendCheck(p) {
   return { id: 'toast-backend', channel: 'toast', status: 'ok', detail: 'BurntToast checked at send time' };
 }
 
-// Real Windows backend probe: the product path is `pwsh -File toast.ps1` →
+const DONETOAST_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'windows', 'donetoast');
+const donetoastBundleReady = () => ['donetoast.ps1', 'toast.ps1'].every((name) => fs.existsSync(path.join(DONETOAST_DIR, name)));
+
+// The Windows backend that is actually in use: Donetoast cards, unless the user
+// turned them off or the bundle is missing. Returns null in those two cases so
+// the caller checks the native backend instead. A card is spawned as
+// `powershell.exe -File donetoast.ps1` (src/platforms/windows.mjs), so Windows
+// PowerShell is the only thing it needs — checking pwsh and BurntToast here
+// would fail a machine whose notifications work.
+export function windowsCardBackendCheck(config, { hasBin = has, bundleReady = donetoastBundleReady } = {}) {
+  if (config?.toast?.cards === false || !bundleReady()) return null;
+  if (!hasBin('powershell')) {
+    return {
+      id: 'toast-backend', channel: 'toast', status: 'fail',
+      detail: 'Windows PowerShell (powershell.exe) not found; Donetoast cards cannot open',
+      hint: 'powershell.exe ships with Windows; check that System32\\WindowsPowerShell\\v1.0 is on PATH',
+    };
+  }
+  return { id: 'toast-backend', channel: 'toast', status: 'ok', detail: 'Donetoast cards (bundled, Windows PowerShell)' };
+}
+
+// Real Windows NATIVE backend probe: the product path is `pwsh -File toast.ps1` →
 // `Import-Module BurntToast`, so the honest checks are (1) PowerShell is present,
 // (2) the BurntToast module resolves, (3) no policy-scope execution policy blocks
 // scripts. Note the product invokes toast.ps1 with `-ExecutionPolicy Bypass`, so
@@ -338,7 +362,9 @@ export function noteSetupDisabledToast(row, config, p) {
 export async function runChecks({ config, configProblem = null, deep = false, strict = false, platform: p = toastPlatform() }) {
   const results = [];
   if (p === 'win32' || p === 'wsl') {
-    const check = p === 'win32' ? windowsToastBackendCheck : wslToastBackendCheck;
+    const check = p === 'win32'
+      ? () => windowsCardBackendCheck(config) || windowsToastBackendCheck()
+      : wslToastBackendCheck;
     try { results.push(check()); }
     catch (err) { results.push({ id: 'toast-backend', channel: 'toast', status: 'warn', detail: `backend check errored: ${err.message}` }); }
   } else {

@@ -587,10 +587,9 @@ Hook fires (stdin JSON + --source flag)
 
 ### Windows
 
-- [BurntToast](https://github.com/Windos/BurntToast) PowerShell module for rich toast notifications
-- Click-to-focus via custom `agentfocus://` URI protocol (registered under HKCU on the first toast; `anotifier uninstall` removes it)
-- BurntToast auto-installed during setup if missing
-- Requires PowerShell 7+ (pwsh); Windows PowerShell 5.1 alone is not enough, and `anotifier doctor` fails the toast check until pwsh is installed
+- Every desktop notification is a bundled [Donetoast](https://github.com/siiplasplas/donetoast) card (vendored under `assets/windows/donetoast/`). It runs on the Windows PowerShell 5.1 and WPF that ship with Windows, so `setup` installs nothing
+- `toast.cards: false` switches to native toasts instead. That path uses the [BurntToast](https://github.com/Windos/BurntToast) PowerShell module and requires PowerShell 7+ (pwsh); with the setting off, `setup` installs BurntToast and `anotifier doctor` checks for both
+- Native toasts only: click-to-focus via custom `agentfocus://` URI protocol (registered under HKCU on the first toast; `anotifier uninstall` removes it)
 
 ### macOS
 
@@ -616,7 +615,7 @@ Hook fires (stdin JSON + --source flag)
 | Requirement | Details |
 |-------------|---------|
 | **Node.js** | >= 18.0.0 (already present for all supported AI tools) |
-| **Windows** | PowerShell 7+ (pwsh) |
+| **Windows** | Nothing extra (Windows PowerShell 5.1, built-in). PowerShell 7+ only if `toast.cards` is `false` |
 | **macOS** | osascript (built-in) |
 | **Linux** | notify-send (optional, for desktop toasts) |
 

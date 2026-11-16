@@ -204,39 +204,40 @@ export async function run() {
   let donetoastReady = false;
   if (PLATFORM === 'win32') {
     donetoastReady = donetoastBundleReady();
-    if (donetoastReady) {
-      log('    ✓ Donetoast cards ready for every tool (click “知道了” to dismiss)', 'green');
-    } else {
-      log('    ✗ Bundled Donetoast scripts missing — falling back to the standard Windows toast', 'yellow');
-    }
+    // The one case that still needs the native backend: the user has turned the
+    // cards off. Read here, ahead of step 5's full (and fail-loud) config load;
+    // a missing or unreadable file just means the default, cards on.
+    let nativeChosen = false;
+    try { nativeChosen = loadConfigResult(getConfigPath()).config?.toast?.cards === false; } catch { nativeChosen = false; }
 
-    // BurntToast no longer delivers anything while the cards are on, but it is
-    // the backend `toast.cards: false` falls back to. So it is still installed
-    // — a failure just stops being fatal when the cards are there.
-    // pwsh is probed first: without it the install below would fail with a
-    // message that hides the real cause.
-    let hasPwsh = true;
-    try { execSync('where pwsh', { stdio: 'pipe', timeout: 10000 }); } catch (err) { hasPwsh = isProbeTimeout(err) ? null : false; }
-    if (hasPwsh === null) {
-      toastReady = null;
-      log('    ? PowerShell 7 check timed out — leaving toasts as they are; re-run setup to retry', 'yellow');
-    } else if (!hasPwsh) {
-      toastReady = false;
-      log('    ✗ PowerShell 7 (pwsh) not found — the native toast fallback needs it', 'yellow');
-      log('      winget install --id Microsoft.PowerShell --source winget, then run: anotifier setup', 'dim');
+    if (donetoastReady && !nativeChosen) {
+      // Every desktop notification is a card, and a card needs only the Windows
+      // PowerShell and WPF that ship with Windows. So nothing is installed:
+      // no PowerShell 7 probe, no BurntToast from the PowerShell Gallery.
+      log('    ✓ Donetoast cards ready for every tool (click “知道了” to dismiss)', 'green');
+      log('    ✓ Nothing to install: cards run on the PowerShell that ships with Windows', 'green');
     } else {
-      const bt = installBurntToast();
-      if (bt === 'ready') log('    ✓ BurntToast module ready (fallback when toast.cards is off)', 'green');
-      else if (bt === 'unknown') { toastReady = null; log('    ? BurntToast check timed out — leaving toasts as they are; re-run setup to retry', 'yellow'); }
-      else { toastReady = false; log('    ✗ BurntToast install failed — the native toast fallback may not work', 'yellow'); }
-    }
-    // The cards carry every desktop notification on their own, so a missing
-    // BurntToast must not disable the toast channel — it only costs the
-    // fallback, which is said plainly.
-    if (donetoastReady && toastReady !== true) {
-      toastReady = true;
-      log('    ✓ Desktop notifications remain enabled via Donetoast cards', 'green');
-      log('    ! Setting toast.cards to false would need PowerShell 7 + BurntToast', 'yellow');
+      if (donetoastReady) log('    · toast.cards is off — setting up the native Windows toast instead', 'dim');
+      else log('    ✗ Bundled Donetoast scripts missing — falling back to the standard Windows toast', 'yellow');
+      // Native toasts run only through PowerShell 7; without it the BurntToast
+      // install below would fail with a message that hides the real cause.
+      let hasPwsh = true;
+      try { execSync('where pwsh', { stdio: 'pipe', timeout: 10000 }); } catch (err) { hasPwsh = isProbeTimeout(err) ? null : false; }
+      if (hasPwsh === null) {
+        toastReady = null;
+        log('    ? PowerShell 7 check timed out — leaving toasts as they are; re-run setup to retry', 'yellow');
+      } else if (!hasPwsh) {
+        toastReady = false;
+        log('    ✗ PowerShell 7 (pwsh) not found — Windows toasts need it', 'yellow');
+        log('      winget install --id Microsoft.PowerShell --source winget, then re-run: anotifier setup', 'dim');
+      } else {
+        const bt = installBurntToast();
+        if (bt === 'ready') log('    ✓ BurntToast module ready', 'green');
+        else if (bt === 'unknown') { toastReady = null; log('    ? BurntToast check timed out — leaving toasts as they are; re-run setup to retry', 'yellow'); }
+        else { toastReady = false; log('    ✗ BurntToast install failed — toasts may not work', 'yellow'); }
+      }
+      // What the hooks will actually deliver is native toasts, not cards.
+      donetoastReady = false;
     }
   } else if (PLATFORM === 'darwin') {
     log('    ✓ osascript (built-in)', 'green');
