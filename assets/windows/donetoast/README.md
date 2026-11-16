@@ -18,19 +18,32 @@ part of this repo and are edited here.
 
 ## Local modifications
 
-Both scripts carry one change against upstream: a named dismiss button.
+Two changes against upstream: a named dismiss button, and one larger card size.
 
-- `toast.ps1` — new `-AcknowledgeLabel <text>` parameter. When set, the card widens
-  (360×78 instead of 283×70, content inset to 86 px) and renders a `Acknowledge`
-  button that closes the card on click. `AutomationProperties.Name` carries the same
-  label so UI Automation can find it. Empty label (the default) collapses the button
-  and keeps the original card geometry.
+### Dismiss button
+
+- `toast.ps1` — new `-AcknowledgeLabel <text>` parameter. When set, the card
+  renders an `Acknowledge` button that closes it on click, and the text column's
+  right inset grows to clear the button. `AutomationProperties.Name` carries the
+  same label so UI Automation can find it. Empty label (the default) collapses
+  the button.
 - `donetoast.ps1` — accepts `-AcknowledgeLabel` and passes it through to `toast.ps1`
   base64-encoded, the same way it already passes the title and message.
 
+### One card size: 480×140
+
+Upstream's card is 283×70 with a single ellipsized message line, which showed
+about 40 of the 180 characters anotifier sends. Every card is now 480×140 —
+whatever the tool, the state, or the options — with a 56 px avatar, slightly
+larger type, and a message that wraps to four lines before it ends in an
+ellipsis. The size is a constant in `toast.ps1` (`$cardWidth` / `$cardHeight`),
+not derived from the content or from `-AcknowledgeLabel`: one geometry keeps the
+stack gap-free and leaves a single layout to maintain. The progress bar follows
+`$cardWidth` instead of a hard-coded 283.
+
 `src/platforms/windows.mjs` calls `donetoast.ps1` with `-AcknowledgeLabel 知道了`.
-When pulling in a new upstream version, re-apply these two changes — the test
-`tests/platforms-codex-donetoast.test.mjs` fails if they are missing.
+When pulling in a new upstream version, re-apply these changes — the test
+`tests/platforms-donetoast.test.mjs` fails if they are missing.
 
 ## What ships here
 

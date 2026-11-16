@@ -100,6 +100,22 @@ test('cardAppName feeds both the header and the icon lookup', () => {
   assert.equal(cardAppName(undefined), 'anotifier');
 });
 
+test('every card is one size, with a message that wraps instead of truncating', () => {
+  const toast = fs.readFileSync(path.join(donetoastDir, 'toast.ps1'), 'utf8');
+  // Constants, not expressions: the size must not vary with the tool, the
+  // state or -AcknowledgeLabel, or there are several layouts to maintain.
+  assert.match(toast, /^\$cardWidth = 480$/m);
+  assert.match(toast, /^\$cardHeight = 140$/m);
+  // The message wraps (and only then trims), so the 180-character cap on
+  // notification text fits; the old single line showed about 40 of them.
+  const message = toast.slice(toast.indexOf('x:Name="MessageText"'));
+  assert.match(message.slice(0, 300), /TextWrapping="Wrap"/);
+  assert.match(message.slice(0, 300), /TextTrimming="CharacterEllipsis"/);
+  // Nothing keeps upstream's width around: the progress bar scales with the card.
+  assert.doesNotMatch(toast, /\$width = 283/);
+  assert.match(toast, /\$width = \$cardWidth \* \$p \/ 100/);
+});
+
 test('the bundle still exposes and renders the explicit acknowledgement control', () => {
   const toast = fs.readFileSync(path.join(donetoastDir, 'toast.ps1'), 'utf8');
   const launcher = fs.readFileSync(path.join(donetoastDir, 'donetoast.ps1'), 'utf8');
