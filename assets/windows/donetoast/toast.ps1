@@ -19,6 +19,8 @@ param(
   [string]$App = 'Claude',
   [string]$AcknowledgeLabel = '',
   [string]$Duration = '',
+  [string]$Sound = '',
+  [switch]$Silent,
   [string]$Icon = '',
   [string]$Time = '',
   [string]$Preview = '',
@@ -237,7 +239,37 @@ if ($Preview) {
   return
 }
 
+# anotifier: the wav behind -Sound, or $null to use the card's own chime.
+#   a path  -> that file, when it is a .wav that exists (SoundPlayer plays nothing else)
+#   a name  -> what Windows has assigned to the notification sound of that name
+#              (IM, Reminder, Mail, SMS, Default; Alarm..Alarm10 and Call..Call10
+#              are the looping ones). Read from the registry rather than a fixed
+#              C:\Windows\Media path, so a sound the user changed in the Windows
+#              sound settings is the one that plays — as it does for a native toast.
+function Resolve-CardSound($value) {
+  if (-not $value) { return $null }
+  try {
+    if ($value -match '[\\/]' -or $value -match '\.wav$') {
+      if ($value -match '\.wav$' -and (Test-Path -LiteralPath $value -PathType Leaf)) { return $value }
+      return $null
+    }
+    if ($value -notmatch '^[A-Za-z0-9]+$') { return $null }
+    $key = if ($value -match '^(Alarm|Call)\d*$') { "Notification.Looping.$value" } else { "Notification.$value" }
+    $file = (Get-ItemProperty -LiteralPath "HKCU:\AppEvents\Schemes\Apps\.Default\$key\.Current" -ErrorAction Stop).'(default)'
+    if (-not $file) { return $null }
+    $file = [Environment]::ExpandEnvironmentVariables($file)
+    if (Test-Path -LiteralPath $file -PathType Leaf) { return $file }
+  } catch {}
+  return $null
+}
+$script:cardSound = Resolve-CardSound $Sound
+
 function Play($state) {
+  # -Silent: anotifier is already playing the user's own audio file in another process.
+  if ($Silent) { return }
+  # Played ONCE, the looping names included: a card stays up until it is clicked,
+  # so a sound that loops for as long as the notification shows would never stop.
+  if ($script:cardSound) { try { (New-Object Media.SoundPlayer $script:cardSound).Play(); return } catch {} }
   $s = $looks[$state]; if ($s -and $s[3]) { try { (New-Object Media.SoundPlayer "$PSScriptRoot\$($s[3])").Play() } catch {} }
 }
 # Release memory once so the waiting card stays small (~140 MB -> ~10 MB working set)

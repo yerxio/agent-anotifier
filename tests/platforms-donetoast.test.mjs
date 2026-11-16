@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sendToast, wantsCard, cardAppName, cardContent } from '../src/platforms/windows.mjs';
+import { sendToast, wantsCard, cardAppName, cardContent, cardSoundArgs } from '../src/platforms/windows.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const donetoastDir = path.join(root, 'assets', 'windows', 'donetoast');
@@ -154,6 +154,64 @@ test('the launcher and the card both carry the duration through to the header', 
   assert.match(launcher, /-Duration \$\(& \$dec \$Duration\)/);
   assert.match(toast, /\[string\]\$Duration = ''/);
   assert.match(toast, /\$el\.Header\.Text = .*\$Duration/);
+});
+
+test('a configured sound name reaches the card, which resolves it itself', async () => {
+  const { seen, deps } = capture();
+  await sendToast({ title: 'p', message: 'Task complete', source: 'claude', event: 'task_complete', toastSound: 'IM' }, deps);
+  assert.equal(argOf(seen.args, '-Sound'), 'IM');
+  assert.ok(!seen.args.includes('-Silent'));
+
+  // Nothing configured: no flag, and the card keeps its own chime.
+  const plain = capture();
+  await sendToast({ title: 'p', message: 'Task complete', source: 'claude', event: 'task_complete' }, plain.deps);
+  assert.ok(!plain.seen.args.includes('-Sound'));
+});
+
+test('cardSoundArgs: a wav goes to the card, other audio plays here and silences it', async () => {
+  const usable = { statSync: () => ({ isFile: () => true }), accessSync: () => {} };
+  const log = () => {};
+
+  const wav = await cardSoundArgs({ toastSound: 'C:\\sounds\\done.wav' }, { log, ...usable });
+  assert.deepEqual(wav, ['-Sound', 'C:\\sounds\\done.wav']);
+
+  // An mp3 cannot be played by the card's SoundPlayer, so the same player the
+  // native backend uses takes it, and the card is told to stay quiet.
+  const spawned = [];
+  const spawnImpl = (command, args) => {
+    spawned.push([command, args]);
+    return { once: (event, cb) => { if (event === 'spawn') cb(); }, unref: () => {} };
+  };
+  const mp3 = await cardSoundArgs({ toastSound: 'C:\\sounds\\done.mp3' }, { log, spawnImpl, ...usable });
+  assert.deepEqual(mp3, ['-Silent']);
+  assert.equal(spawned[0][0], 'pwsh');
+  assert.ok(spawned[0][1].includes('C:\\sounds\\done.mp3'));
+
+  // No player could start: no flag, so the card falls back to its own chime
+  // rather than going silent.
+  const failing = (command, args) => ({ once: (event, cb) => { if (event === 'error') cb(new Error('ENOENT')); }, unref: () => {} });
+  assert.deepEqual(await cardSoundArgs({ toastSound: 'C:\\sounds\\done.mp3' }, { log, spawnImpl: failing, ...usable }), []);
+
+  // A file that is not there: logged by prepareSoundFile, and again no flag.
+  const missing = { statSync: () => { throw Object.assign(new Error('nope'), { code: 'ENOENT' }); }, accessSync: () => {} };
+  assert.deepEqual(await cardSoundArgs({ toastSound: 'C:\\sounds\\gone.wav' }, { log, ...missing }), []);
+});
+
+test('the card plays the configured sound once and falls back to its own chime', () => {
+  const toast = fs.readFileSync(path.join(donetoastDir, 'toast.ps1'), 'utf8');
+  const launcher = fs.readFileSync(path.join(donetoastDir, 'donetoast.ps1'), 'utf8');
+  assert.match(toast, /\[string\]\$Sound = ''/);
+  assert.match(toast, /\[switch\]\$Silent/);
+  // Names come from the user's Windows sound scheme, not a hard-coded media path.
+  assert.match(toast, /HKCU:\\AppEvents\\Schemes\\Apps\\\.Default\\\$key\\\.Current/);
+  assert.match(toast, /Notification\.Looping\.\$value/);
+  // .Play() and never .PlayLooping(): the card is persistent, a loop would not end.
+  assert.doesNotMatch(toast, /PlayLooping/);
+  // The bundled chime is still there behind it.
+  const play = toast.slice(toast.indexOf('function Play($state)'));
+  assert.ok(play.indexOf('$script:cardSound') < play.indexOf('$looks[$state]'), 'configured sound first, bundled chime as the fallback');
+  assert.match(launcher, /-Sound \$\(& \$dec \$Sound\)/);
+  assert.match(launcher, /if \(\$Silent\) \{ ' -Silent' \}/);
 });
 
 test('the bundle still exposes and renders the explicit acknowledgement control', () => {

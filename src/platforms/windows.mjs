@@ -90,7 +90,29 @@ export function cardContent(notification) {
   return { app, title: project || notification.title || app, message, duration };
 }
 
-function sendDonetoast(notification, { execFileImpl, log }) {
+// How the card should sound, from the same `toastSound` the native toast reads
+// (events.<event>.toastSound, set by `anotifier config sounds`):
+//   a sound name (IM, Reminder, ...)  -> -Sound <name>; the card looks up the wav
+//                                        Windows has assigned to that name
+//   a .wav file                       -> -Sound <path>; the card plays it itself
+//   any other audio file              -> played here through play-sound.ps1, as
+//                                        the native backend does, and the card
+//                                        is told to stay -Silent
+// No args at all — nothing configured, an unusable file, no player — leaves the
+// card on its own chime, so a bad sound setting never costs the notification
+// its sound, let alone the card.
+export async function cardSoundArgs(notification, { log, ...soundDeps } = {}) {
+  const sound = typeof notification.toastSound === 'string' ? notification.toastSound.trim() : '';
+  if (!sound) return [];
+  if (!isSoundFilePath(sound)) return ['-Sound', sound];
+  const file = prepareSoundFile(sound, 'toast:donetoast', { log, ...soundDeps });
+  if (!file) return [];
+  if (path.extname(file).toLowerCase() === '.wav') return ['-Sound', file];
+  const playing = await playFirst([['pwsh', windowsPlayerArgs(PLAY_SCRIPT, file)]], 'toast:donetoast', { log, windowsHide: true, ...soundDeps });
+  return playing ? ['-Silent'] : [];
+}
+
+async function sendDonetoast(notification, { execFileImpl, log, ...soundDeps }) {
   const card = cardContent(notification);
   const args = [
     '-NoProfile', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass', '-File', DONETOAST_SCRIPT,
@@ -102,6 +124,7 @@ function sendDonetoast(notification, { execFileImpl, log }) {
   if (card.duration) args.push('-Duration', card.duration);
   if (notification.event === 'needs_input') args.push('-Waiting');
   else if (notification.event === 'task_complete' && /\bTask failed\b/i.test(notification.message || '')) args.push('-Failed');
+  args.push(...await cardSoundArgs(notification, { log, ...soundDeps }));
 
   return new Promise((resolve) => {
     const started = Date.now();
@@ -129,7 +152,7 @@ export async function sendToast(notification, deps = {}) {
   // acknowledgement button. Everything else — the statusline alerts, and every
   // tool when `toast.cards` is off — keeps the native-toast path below.
   if (wantsCard(notification)) {
-    return sendDonetoast(notification, { execFileImpl, log });
+    return sendDonetoast(notification, { execFileImpl, log, ...soundDeps });
   }
 
   // A custom sound file plays in its own detached pwsh and the toast is made

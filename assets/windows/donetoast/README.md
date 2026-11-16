@@ -50,6 +50,23 @@ the end of the message it was the first thing a long text pushed off the card.
 The same function sends the project name alone as the title — the header
 already names the tool.
 
+### The user's own sound
+
+`-Sound <name or .wav path>` and `-Silent` on both scripts, fed from the same
+`events.<event>.toastSound` the native toast reads (`anotifier config sounds`).
+A name — `IM`, `Reminder`, `Mail`, `SMS`, `Default`, `Alarm`..`Alarm10`,
+`Call`..`Call10` — is resolved by the card through
+`HKCU:\AppEvents\Schemes\Apps\.Default\Notification.<name>\.Current`, so it is
+the sound Windows has assigned to that name, including one the user changed in
+the sound settings. A `.wav` path is played directly. Other audio formats are
+played by `src/platforms/windows.mjs` through `play-sound.ps1` and the card is
+started `-Silent`.
+
+Two deliberate differences from a native toast: the sound plays once, looping
+names included, because a card stays up until it is clicked; and anything that
+does not resolve — an unknown name, a missing file — falls back to the card's
+bundled chime rather than to silence.
+
 `src/platforms/windows.mjs` calls `donetoast.ps1` with `-AcknowledgeLabel 知道了`.
 When pulling in a new upstream version, re-apply these changes — the test
 `tests/platforms-donetoast.test.mjs` fails if they are missing.

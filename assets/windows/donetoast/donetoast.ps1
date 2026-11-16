@@ -13,6 +13,8 @@
 #   -App Codex -> show Codex's name and icon in the header (default: Claude).
 #   -AcknowledgeLabel '知道了' -> add a named button that dismisses the card.
 #   -Duration '4m 12s' (anotifier) -> shown in the card header after the state word.
+#   -Sound IM | Reminder | C:\path\done.wav (anotifier) -> play that instead of the card's own chime;
+#     -Silent -> play nothing (the caller is playing its own audio).
 # When called from a sandboxed agent, run it with the sandbox off, or the card can't reach your desktop.
 param(
   [string]$Title,
@@ -26,7 +28,9 @@ param(
   [switch]$Progress,
   [string]$App = 'Claude',
   [string]$AcknowledgeLabel = '',
-  [string]$Duration = ''
+  [string]$Duration = '',
+  [string]$Sound = '',
+  [switch]$Silent
 )
 
 $root = $PSScriptRoot
@@ -59,7 +63,8 @@ if (-not $Id) {
   $f = if ($Failed) { ' -Failed' } elseif ($Waiting) { ' -Waiting' } else { '' }
   $ack = if ($AcknowledgeLabel) { " -AcknowledgeLabel $(& $dec $AcknowledgeLabel)" } else { '' }
   $dur = if ($Duration) { " -Duration $(& $dec $Duration)" } else { '' }
-  return "started pid=$(Launch "& '$root\toast.ps1' -Title $(& $dec $Title) -Message $(& $dec "$Message") -App $(& $dec $App)$f$ack$dur")"
+  $snd = if ($Silent) { ' -Silent' } elseif ($Sound) { " -Sound $(& $dec $Sound)" } else { '' }
+  return "started pid=$(Launch "& '$root\toast.ps1' -Title $(& $dec $Title) -Message $(& $dec "$Message") -App $(& $dec $App)$f$ack$dur$snd")"
 }
 
 # Live card: write the state file; open a card only if none is showing for this id yet
