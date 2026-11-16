@@ -56,7 +56,8 @@ async function printUpdateBanner(c, updatePromise) {
 async function main() {
   const { c, banner } = await import('./ui.mjs');
 
-  // Fire the (cached, at most one/day) update check once for this run. status
+  // Fire the (cached, at most one/day) update check once for this run — a no-op
+  // unless the user turned updateCheck.enabled on (see checkForUpdate). status
   // shares the same memoized promise, so no command makes a second request.
   const updatePromise = checkForUpdate();
 
@@ -121,7 +122,7 @@ function printHelp(c, banner) {
   console.log(`    ${c.accent('snooze')} ${c.muted('<dur|off>')}  ${c.white('Silence every channel for a while')} ${c.muted('(30m | 2h | 90s | 45)')}`);
   console.log(`    ${c.accent('telemetry')}         ${c.white('Opt-in anonymous usage stats')} ${c.muted('(status | on | off)')}`);
   console.log(`    ${c.accent('uninstall')}         ${c.white('Remove hooks from all tools')}`);
-  console.log(`    ${c.muted('--version, -v')}     ${c.white('Show version and check for updates')}`);
+  console.log(`    ${c.muted('--version, -v')}     ${c.white('Show version')}`);
   console.log();
   console.log(`  ${c.bold('Examples:')}`);
   console.log(`    ${c.muted('$')} ${c.white('npx anotifier setup')}`);

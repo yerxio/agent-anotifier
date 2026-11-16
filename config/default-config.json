@@ -26,7 +26,7 @@
     "dsn": ""
   },
   "updateCheck": {
-    "enabled": true
+    "enabled": false
   },
   "telemetry": {
     "enabled": false,

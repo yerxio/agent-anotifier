@@ -11,7 +11,7 @@ import https from 'node:https';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { getConfigDir } from './config-loader.mjs';
+import { getConfigDir, loadConfigResult } from './config-loader.mjs';
 import { sendNtfy } from './ntfy.mjs';
 import { sendWebhook } from './webhook.mjs';
 import { resolveToastBackend } from './platforms/index.mjs';
@@ -39,9 +39,27 @@ let inFlight;
 // Public entry point. Memoized for the life of the process so a single command
 // run makes at most one network request even if several call sites ask.
 // Resolves to a newer version string (update available) or null. Never throws.
-export function checkForUpdate() {
+//
+// Off unless the user turned `updateCheck.enabled` on, and then it does nothing
+// at all: no request, no cache file. The setting is read HERE rather than by
+// the callers because the CLI used to call this unconditionally — the setting
+// only silenced the hook's notice, and `anotifier status` went on asking the
+// npm registry once a day whatever the config said.
+export function checkForUpdate({ enabled = updateCheckEnabled() } = {}) {
+  if (!enabled) return Promise.resolve(null);
   if (!inFlight) inFlight = resolveUpdate(CACHE_PATH, fetchLatest, Date.now());
   return inFlight;
+}
+
+// The one reading of the setting. Opt-in: only an explicit `true` counts, so a
+// config that cannot be read means no network access rather than some.
+export function updateCheckEnabled(config) {
+  try {
+    const resolved = config === undefined ? loadConfigResult().config : config;
+    return resolved?.updateCheck?.enabled === true;
+  } catch {
+    return false;
+  }
 }
 
 // Core logic, dependency-injected for tests (cache path, fetch impl, clock).
@@ -129,8 +147,8 @@ export async function maybeNotifyUpdate(config, {
   currentVersion = pkg.version,
   budgetMs = HOOK_BUDGET_MS,
 } = {}) {
-  // Opt-out is total: no network, no state file, no notification.
-  if (config?.updateCheck?.enabled === false) return null;
+  // Off is total: no network, no state file, no notification.
+  if (!updateCheckEnabled(config ?? null)) return null;
   try {
     return await Promise.race([
       runUpdateCheck({ config, cachePath, fetchImpl, now, notify, currentVersion }),

@@ -13,6 +13,9 @@ import { maybeNotifyUpdate, sendUpdateNotification, RELEASES_URL, UPGRADE_COMMAN
 const NOW = 1_700_000_000_000;
 // Every maybeNotifyUpdate case injects this recorder as `notify`, so no test can
 // reach a real channel (a default-on toast would spawn a real desktop notification).
+// The check is opt-in (default off), so a case that exercises it turns it on.
+const ON = { updateCheck: { enabled: true } };
+
 const recorder = () => {
   const sent = [];
   return { sent, notify: async (config, info) => { sent.push(info); } };
@@ -29,7 +32,7 @@ describe('maybeNotifyUpdate', () => {
 
   it('notifies once when the registry reports a newer version, and records it', async () => {
     const { sent, notify } = recorder();
-    const announced = await maybeNotifyUpdate({}, {
+    const announced = await maybeNotifyUpdate(ON, {
       cachePath, notify, now: NOW, currentVersion: '1.2.2',
       fetchImpl: async () => '1.3.0',
     });
@@ -44,8 +47,8 @@ describe('maybeNotifyUpdate', () => {
     const { sent, notify } = recorder();
     let calls = 0;
     const fetchImpl = async () => { calls++; return '1.3.0'; };
-    await maybeNotifyUpdate({}, { cachePath, notify, now: NOW, currentVersion: '1.2.2', fetchImpl });
-    await maybeNotifyUpdate({}, { cachePath, notify, now: NOW + UPDATE_TTL_MS - 1, currentVersion: '1.2.2', fetchImpl });
+    await maybeNotifyUpdate(ON, { cachePath, notify, now: NOW, currentVersion: '1.2.2', fetchImpl });
+    await maybeNotifyUpdate(ON, { cachePath, notify, now: NOW + UPDATE_TTL_MS - 1, currentVersion: '1.2.2', fetchImpl });
     assert.equal(calls, 1, 'second run must be served from the cache');
     assert.equal(sent.length, 1, 'and must not re-notify');
   });
@@ -53,15 +56,15 @@ describe('maybeNotifyUpdate', () => {
   it('never re-announces the same version, even after the TTL expires', async () => {
     const { sent, notify } = recorder();
     const fetchImpl = async () => '1.3.0';
-    await maybeNotifyUpdate({}, { cachePath, notify, now: NOW, currentVersion: '1.2.2', fetchImpl });
-    await maybeNotifyUpdate({}, { cachePath, notify, now: NOW + UPDATE_TTL_MS + 1, currentVersion: '1.2.2', fetchImpl });
+    await maybeNotifyUpdate(ON, { cachePath, notify, now: NOW, currentVersion: '1.2.2', fetchImpl });
+    await maybeNotifyUpdate(ON, { cachePath, notify, now: NOW + UPDATE_TTL_MS + 1, currentVersion: '1.2.2', fetchImpl });
     assert.equal(sent.length, 1, 'lastNotifiedVersion suppresses the repeat');
   });
 
   it('announces again once a NEWER version is published', async () => {
     const { sent, notify } = recorder();
-    await maybeNotifyUpdate({}, { cachePath, notify, now: NOW, currentVersion: '1.2.2', fetchImpl: async () => '1.3.0' });
-    await maybeNotifyUpdate({}, {
+    await maybeNotifyUpdate(ON, { cachePath, notify, now: NOW, currentVersion: '1.2.2', fetchImpl: async () => '1.3.0' });
+    await maybeNotifyUpdate(ON, {
       cachePath, notify, now: NOW + UPDATE_TTL_MS + 1, currentVersion: '1.2.2',
       fetchImpl: async () => '1.4.0',
     });
@@ -70,7 +73,7 @@ describe('maybeNotifyUpdate', () => {
 
   it('stays quiet when the published version is not newer than the local one', async () => {
     const { sent, notify } = recorder();
-    const announced = await maybeNotifyUpdate({}, {
+    const announced = await maybeNotifyUpdate(ON, {
       cachePath, notify, now: NOW, currentVersion: '1.2.2',
       fetchImpl: async () => '1.2.2',
     });
@@ -83,7 +86,7 @@ describe('maybeNotifyUpdate', () => {
     // cached hit is still fresh, but there is nothing left to announce.
     fs.writeFileSync(cachePath, JSON.stringify({ checkedAt: NOW, latest: '1.3.0' }));
     const { sent, notify } = recorder();
-    const announced = await maybeNotifyUpdate({}, {
+    const announced = await maybeNotifyUpdate(ON, {
       cachePath, notify, now: NOW + 1, currentVersion: '1.3.0',
       fetchImpl: async () => assert.fail('must not fetch — the cache is fresh'),
     });
@@ -132,7 +135,7 @@ describe('maybeNotifyUpdate resilience (a hook must never crash)', () => {
 
   it('a throwing fetch (network error) resolves null and notifies nothing', async () => {
     const { sent, notify } = recorder();
-    const announced = await maybeNotifyUpdate({}, {
+    const announced = await maybeNotifyUpdate(ON, {
       cachePath, notify, now: NOW, currentVersion: '1.2.2',
       fetchImpl: async () => { throw new Error('ECONNREFUSED'); },
     });
@@ -145,7 +148,7 @@ describe('maybeNotifyUpdate resilience (a hook must never crash)', () => {
 
   it('a null fetch result (what fetchLatest returns on timeout or malformed JSON) notifies nothing', async () => {
     const { sent, notify } = recorder();
-    const announced = await maybeNotifyUpdate({}, {
+    const announced = await maybeNotifyUpdate(ON, {
       cachePath, notify, now: NOW, currentVersion: '1.2.2', fetchImpl: async () => null,
     });
     assert.equal(announced, null);
@@ -155,7 +158,7 @@ describe('maybeNotifyUpdate resilience (a hook must never crash)', () => {
   it('a corrupt state file is treated as empty rather than throwing', async () => {
     fs.writeFileSync(cachePath, '{ not json ,,,');
     const { sent, notify } = recorder();
-    const announced = await maybeNotifyUpdate({}, {
+    const announced = await maybeNotifyUpdate(ON, {
       cachePath, notify, now: NOW, currentVersion: '1.2.2', fetchImpl: async () => '1.3.0',
     });
     assert.equal(announced, '1.3.0', 'corrupt state falls through to a fresh check');
@@ -165,7 +168,7 @@ describe('maybeNotifyUpdate resilience (a hook must never crash)', () => {
   it('a state file holding a JSON scalar is treated as empty rather than throwing', async () => {
     fs.writeFileSync(cachePath, 'null');
     const { notify } = recorder();
-    const announced = await maybeNotifyUpdate({}, {
+    const announced = await maybeNotifyUpdate(ON, {
       cachePath, notify, now: NOW, currentVersion: '1.2.2', fetchImpl: async () => '1.3.0',
     });
     assert.equal(announced, '1.3.0');
@@ -177,7 +180,7 @@ describe('maybeNotifyUpdate resilience (a hook must never crash)', () => {
     const blocked = path.join(dir, 'blocked.json');
     fs.mkdirSync(blocked);
     const { sent, notify } = recorder();
-    const announced = await maybeNotifyUpdate({}, {
+    const announced = await maybeNotifyUpdate(ON, {
       cachePath: blocked, notify, now: NOW, currentVersion: '1.2.2', fetchImpl: async () => '1.3.0',
     });
     assert.equal(announced, '1.3.0');
@@ -185,7 +188,7 @@ describe('maybeNotifyUpdate resilience (a hook must never crash)', () => {
   });
 
   it('a throwing notifier is swallowed rather than failing the hook run', async () => {
-    const announced = await maybeNotifyUpdate({}, {
+    const announced = await maybeNotifyUpdate(ON, {
       cachePath, now: NOW, currentVersion: '1.2.2',
       fetchImpl: async () => '1.3.0',
       notify: async () => { throw new Error('every channel exploded'); },
@@ -207,7 +210,7 @@ describe('maybeNotifyUpdate resilience (a hook must never crash)', () => {
 
   it('a hung check resolves null at the budget instead of holding the hook open', async () => {
     const { sent, notify } = recorder();
-    const announced = await whileHeldOpen(() => maybeNotifyUpdate({}, {
+    const announced = await whileHeldOpen(() => maybeNotifyUpdate(ON, {
       cachePath, notify, now: NOW, currentVersion: '1.2.2', budgetMs: 20,
       fetchImpl: () => new Promise(() => {}), // never settles
     }));
@@ -222,9 +225,9 @@ describe('maybeNotifyUpdate resilience (a hook must never crash)', () => {
     const hang = { cachePath, now: NOW, currentVersion: '1.2.2', budgetMs: 20, fetchImpl: async () => '1.3.0' };
     const notify = () => { attempts++; return new Promise(() => {}); }; // never settles
     await whileHeldOpen(async () => {
-      await maybeNotifyUpdate({}, { ...hang, notify });
+      await maybeNotifyUpdate(ON, { ...hang, notify });
       assert.equal(JSON.parse(fs.readFileSync(cachePath, 'utf8')).lastNotifiedVersion, '1.3.0');
-      await maybeNotifyUpdate({}, { ...hang, notify, now: NOW + 1 });
+      await maybeNotifyUpdate(ON, { ...hang, notify, now: NOW + 1 });
     });
     assert.equal(attempts, 1, 'the second run must not re-dispatch');
   });

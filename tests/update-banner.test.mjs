@@ -20,10 +20,15 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const pkg = require('../package.json');
 
 // Runs the real CLI with a throwaway HOME whose update cache claims `latest`.
-function runCli(args, latest) {
+// `enabled` is the user's updateCheck.enabled; null writes no config at all,
+// which is a fresh install on the defaults.
+function runCli(args, latest, enabled = true) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'aan-banner-'));
   const cfgDir = path.join(home, '.anotifier');
   fs.mkdirSync(cfgDir, { recursive: true });
+  if (enabled !== null) {
+    fs.writeFileSync(path.join(cfgDir, 'config.json'), JSON.stringify({ updateCheck: { enabled } }));
+  }
   fs.writeFileSync(
     path.join(cfgDir, '.update-check.json'),
     JSON.stringify({ checkedAt: Date.now(), latest }), // fresh: no network
@@ -52,6 +57,20 @@ for (const [label, args] of [['--version', ['--version']], ['status', ['status']
       const res = runCli(args, '0.0.1');
       assert.equal(res.status, 0, res.stderr);
       assert.ok(!res.stdout.includes('Update available'), `never nag a downgrade: ${res.stdout}`);
+    });
+
+    // The check is opt-in. With it off the CLI must not even read the cache: a
+    // newer version sitting there proves the banner is gated, not just quiet.
+    it('says nothing when the check is off, whatever the cache holds', () => {
+      const off = runCli(args, '99.0.0', false);
+      assert.equal(off.status, 0, off.stderr);
+      assert.ok(!off.stdout.includes('Update available'), `off must be off: ${off.stdout}`);
+    });
+
+    it('says nothing on a fresh install, where the default is off', () => {
+      const fresh = runCli(args, '99.0.0', null);
+      assert.equal(fresh.status, 0, fresh.stderr);
+      assert.ok(!fresh.stdout.includes('Update available'), `default must be off: ${fresh.stdout}`);
     });
 
     it('still fires for a genuinely newer version', () => {
