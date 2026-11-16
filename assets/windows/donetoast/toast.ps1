@@ -18,6 +18,7 @@ param(
   [int]$Seconds = 0,
   [string]$App = 'Claude',
   [string]$AcknowledgeLabel = '',
+  [string]$Duration = '',
   [string]$Icon = '',
   [string]$Time = '',
   [string]$Preview = '',
@@ -27,14 +28,15 @@ param(
 )
 
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase
-# anotifier: ONE card size for every tool, state and option — 480x140, about
-# 2.4x the area of upstream's 283x70. The message wraps to four lines, which
-# holds the 180-character cap anotifier puts on notification text, so nothing a
-# hook sends is cut off. Deliberately not derived from the content or from
-# -AcknowledgeLabel: a single geometry keeps stacking gap-free and leaves one
-# layout to maintain. Only the text column's right inset moves, to clear the button.
+# anotifier: ONE card size for every tool, state and option — 480x160, about
+# 2.7x the area of upstream's 283x70. The message wraps to five lines: enough
+# for the 180-character cap anotifier puts on notification text in Latin
+# script, and for most of it in CJK, whose glyphs are twice as wide.
+# Deliberately not derived from the content or from -AcknowledgeLabel: a single
+# geometry keeps stacking gap-free and leaves one layout to maintain. Only the
+# text column's right inset moves, to clear the button.
 $cardWidth = 480
-$cardHeight = 140
+$cardHeight = 160
 $contentRight = if ($AcknowledgeLabel) { 92 } else { 12 }
 
 # Current content: title, message, percent (-1 = unknown) and state (done | failed | waiting | running)
@@ -123,7 +125,7 @@ if (-not $Icon) { $Icon = "$PSScriptRoot\icons\$($App.ToLowerInvariant()).png"; 
       <Border Height="1" VerticalAlignment="Top" Background="#14FFFFFF" IsHitTestVisible="False"/>
 
       <!-- anotifier: padding 12, avatar 56, text 14 px after the avatar; the
-           message wraps to four lines and only then ends in an ellipsis -->
+           message wraps to five lines and only then ends in an ellipsis -->
       <Grid Margin="12,12,$contentRight,12">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="56"/><ColumnDefinition Width="*"/>
@@ -141,7 +143,7 @@ if (-not $Icon) { $Icon = "$PSScriptRoot\icons\$($App.ToLowerInvariant()).png"; 
           <TextBlock x:Name="TitleText" Grid.Row="1" FontSize="15" FontWeight="SemiBold" Foreground="#FFFFFF"
                      TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
           <TextBlock x:Name="MessageText" Grid.Row="2" FontSize="13" Foreground="#A3AAB3"
-                     TextWrapping="Wrap" LineHeight="17" LineStackingStrategy="BlockLineHeight" MaxHeight="68"
+                     TextWrapping="Wrap" LineHeight="17" LineStackingStrategy="BlockLineHeight" MaxHeight="85"
                      TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
         </Grid>
       </Grid>
@@ -207,7 +209,9 @@ function ShowState([bool]$animate) {
   $c = $script:cur; $l = $looks[$c.state]; if (-not $l) { $l = $looks.done }
   $brush = New-Object Windows.Media.SolidColorBrush ([Windows.Media.ColorConverter]::ConvertFromString($l[0])); $brush.Freeze()
   $el.Glyph.Text = [string][char]$l[1]; $el.Glyph.Foreground = $brush; $el.Bar.Background = $brush
-  $el.Header.Text = " $script:App  ·  $($l[2])"
+  # anotifier: the turn length rides in the header, where it is always visible.
+  # At the end of the message it was the first thing a long text pushed off the card.
+  $el.Header.Text = " $script:App  ·  $($l[2])" + $(if ($Duration -and $c.state -ne 'running') { "  ·  $Duration" } else { '' })
   $el.TitleText.Text = $c.title
   $el.MessageText.Text = if ($c.state -eq 'running' -and $Id) { RunText } else { $c.message }
   if ($c.percent -ge 0 -or ($c.state -eq 'running' -and $Id)) {

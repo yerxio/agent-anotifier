@@ -30,16 +30,25 @@ Two changes against upstream: a named dismiss button, and one larger card size.
 - `donetoast.ps1` — accepts `-AcknowledgeLabel` and passes it through to `toast.ps1`
   base64-encoded, the same way it already passes the title and message.
 
-### One card size: 480×140
+### One card size: 480×160
 
 Upstream's card is 283×70 with a single ellipsized message line, which showed
-about 40 of the 180 characters anotifier sends. Every card is now 480×140 —
+about 40 of the 180 characters anotifier sends. Every card is now 480×160 —
 whatever the tool, the state, or the options — with a 56 px avatar, slightly
-larger type, and a message that wraps to four lines before it ends in an
+larger type, and a message that wraps to five lines before it ends in an
 ellipsis. The size is a constant in `toast.ps1` (`$cardWidth` / `$cardHeight`),
 not derived from the content or from `-AcknowledgeLabel`: one geometry keeps the
 stack gap-free and leaves a single layout to maintain. The progress bar follows
 `$cardWidth` instead of a hard-coded 283.
+
+### Turn length in the header
+
+`-Duration <text>` on both scripts. The card header reads
+`Claude · done · 4m 12s`; `src/platforms/windows.mjs` (`cardContent`) takes the
+` (took 4m 12s)` suffix off the message and sends it here instead, because at
+the end of the message it was the first thing a long text pushed off the card.
+The same function sends the project name alone as the title — the header
+already names the tool.
 
 `src/platforms/windows.mjs` calls `donetoast.ps1` with `-AcknowledgeLabel 知道了`.
 When pulling in a new upstream version, re-apply these changes — the test

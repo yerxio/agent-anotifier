@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sendToast, wantsCard, cardAppName } from '../src/platforms/windows.mjs';
+import { sendToast, wantsCard, cardAppName, cardContent } from '../src/platforms/windows.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const donetoastDir = path.join(root, 'assets', 'windows', 'donetoast');
@@ -105,7 +105,7 @@ test('every card is one size, with a message that wraps instead of truncating', 
   // Constants, not expressions: the size must not vary with the tool, the
   // state or -AcknowledgeLabel, or there are several layouts to maintain.
   assert.match(toast, /^\$cardWidth = 480$/m);
-  assert.match(toast, /^\$cardHeight = 140$/m);
+  assert.match(toast, /^\$cardHeight = 160$/m);
   // The message wraps (and only then trims), so the 180-character cap on
   // notification text fits; the old single line showed about 40 of them.
   const message = toast.slice(toast.indexOf('x:Name="MessageText"'));
@@ -114,6 +114,46 @@ test('every card is one size, with a message that wraps instead of truncating', 
   // Nothing keeps upstream's width around: the progress bar scales with the card.
   assert.doesNotMatch(toast, /\$width = 283/);
   assert.match(toast, /\$width = \$cardWidth \* \$p \/ 100/);
+});
+
+test('the card title is the project alone and the turn length moves to the header', async () => {
+  const { seen, deps } = capture();
+  await sendToast({
+    title: 'my-project · Claude Code', message: 'All 12 tests pass now. (took 4m 12s)', durationText: '4m 12s',
+    projectName: 'my-project', source: 'claude', event: 'task_complete',
+  }, deps);
+  // The header names the tool already, so the title does not repeat it.
+  assert.equal(argOf(seen.args, '-Title'), 'my-project');
+  // The duration is its own field, and no longer trails the message, where a
+  // long text pushed it off the card.
+  assert.equal(argOf(seen.args, '-Duration'), '4m 12s');
+  assert.equal(argOf(seen.args, '-Message'), 'All 12 tests pass now.');
+});
+
+test('cardContent leaves a notification without project or duration as it is', () => {
+  assert.deepEqual(
+    cardContent({ title: 'anotifier', message: 'Test notification', event: 'task_complete' }),
+    { app: 'anotifier', title: 'anotifier', message: 'Test notification', duration: '' },
+  );
+  // A message that merely mentions a duration elsewhere is not rewritten.
+  assert.equal(
+    cardContent({ message: 'It (took 5s) to build, then failed', durationText: '5s', source: 'codex' }).message,
+    'It (took 5s) to build, then failed',
+  );
+  // The other channels read the same object afterwards: it must not be mutated.
+  const shared = { title: 'p · Codex', message: 'p: Task complete (took 9s)', durationText: '9s', projectName: 'p', source: 'codex' };
+  cardContent(shared);
+  assert.equal(shared.message, 'p: Task complete (took 9s)');
+  assert.equal(shared.title, 'p · Codex');
+});
+
+test('the launcher and the card both carry the duration through to the header', () => {
+  const toast = fs.readFileSync(path.join(donetoastDir, 'toast.ps1'), 'utf8');
+  const launcher = fs.readFileSync(path.join(donetoastDir, 'donetoast.ps1'), 'utf8');
+  assert.match(launcher, /\[string\]\$Duration = ''/);
+  assert.match(launcher, /-Duration \$\(& \$dec \$Duration\)/);
+  assert.match(toast, /\[string\]\$Duration = ''/);
+  assert.match(toast, /\$el\.Header\.Text = .*\$Duration/);
 });
 
 test('the bundle still exposes and renders the explicit acknowledgement control', () => {

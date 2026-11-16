@@ -69,14 +69,37 @@ export function toastFailureDetail(err, stderr, elapsedMs, timeoutMs = TOAST_TIM
   };
 }
 
+// What the card shows, re-cut from the shared notification, because the card
+// has a header row the other channels lack:
+//   title    the project alone. The shared title is "<project> · <tool label>",
+//            but the header already names the tool, and the repeat pushed long
+//            project names into an ellipsis.
+//   duration its own header field. The shared message ends in " (took 4m 12s)",
+//            the first thing a long text pushes off the card.
+//   message  the shared message without that suffix.
+// Other channels still get the notification untouched.
+export function cardContent(notification) {
+  const app = cardAppName(notification.source);
+  const project = typeof notification.projectName === 'string'
+    ? notification.projectName.replace(/\s+/g, ' ').trim()
+    : '';
+  const duration = typeof notification.durationText === 'string' ? notification.durationText : '';
+  let message = notification.message || '';
+  const suffix = ` (took ${duration})`;
+  if (duration && message.endsWith(suffix)) message = message.slice(0, -suffix.length);
+  return { app, title: project || notification.title || app, message, duration };
+}
+
 function sendDonetoast(notification, { execFileImpl, log }) {
+  const card = cardContent(notification);
   const args = [
     '-NoProfile', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass', '-File', DONETOAST_SCRIPT,
-    '-Title', notification.title || cardAppName(notification.source),
-    '-Message', notification.message || '',
-    '-App', cardAppName(notification.source),
+    '-Title', card.title,
+    '-Message', card.message,
+    '-App', card.app,
     '-AcknowledgeLabel', '知道了',
   ];
+  if (card.duration) args.push('-Duration', card.duration);
   if (notification.event === 'needs_input') args.push('-Waiting');
   else if (notification.event === 'task_complete' && /\bTask failed\b/i.test(notification.message || '')) args.push('-Failed');
 
