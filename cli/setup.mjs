@@ -82,15 +82,60 @@ function donetoastBundleReady() {
   return ['donetoast.ps1', 'toast.ps1'].every((name) => fs.existsSync(path.join(dir, name)));
 }
 
-function downloadIcon(destPath) {
+export const ICON_URL = 'https://claude.ai/images/claude_app_icon.png';
+
+// True for an icon file that can actually be shown. A zero-byte file is what a
+// failed download used to leave behind, and must count as missing or setup
+// would never try again.
+export function iconUsable(iconPath) {
+  try { return fs.statSync(iconPath).size > 0; } catch { return false; }
+}
+
+// Download the legacy fallback icon. Resolves true only when the complete file
+// is in place; every failure resolves false and leaves NOTHING behind — no
+// file, and above all no open socket.
+//
+// The socket is the part that matters. A request that is neither read to the
+// end nor destroyed keeps its keep-alive connection open, and an open
+// connection keeps the Node process alive: setup printed "Setup complete" and
+// then never exited. Any non-200 reaches that path, and claude.ai answers a
+// 302 to its "unavailable in region" page from some networks, so this is not
+// a rare error. The `timeout` option is no help on its own either: it only
+// emits an event, and nothing aborted the request.
+export function downloadIcon(destPath, { url = ICON_URL, get = https.get, timeoutMs = 10000 } = {}) {
   return new Promise((resolve) => {
-    const url = 'https://claude.ai/images/claude_app_icon.png';
-    const file = fs.createWriteStream(destPath);
-    https.get(url, { timeout: 10000 }, (res) => {
-      if (res.statusCode !== 200) { file.close(); resolve(false); return; }
-      res.pipe(file);
-      file.on('finish', () => { file.close(); resolve(true); });
-    }).on('error', () => { file.close(); resolve(false); });
+    const partial = `${destPath}.part`;
+    let settled = false;
+    let req;
+    const finish = (ok) => {
+      if (settled) return;
+      settled = true;
+      if (!ok) {
+        try { req?.destroy(); } catch {}
+        try { fs.rmSync(partial, { force: true }); } catch {}
+      }
+      resolve(ok);
+    };
+    try {
+      req = get(url, { timeout: timeoutMs }, (res) => {
+        // Not followed on purpose: the only redirect seen here leads to an HTML
+        // page, not an image. Drain and drop the connection.
+        if (res.statusCode !== 200) { res.resume(); finish(false); return; }
+        // Written beside the target and renamed at the end, so a download that
+        // dies halfway can never be mistaken for an icon.
+        const file = fs.createWriteStream(partial);
+        file.on('error', () => finish(false));
+        res.on('error', () => finish(false));
+        res.pipe(file);
+        file.on('finish', () => file.close(() => {
+          try { fs.renameSync(partial, destPath); finish(true); } catch { finish(false); }
+        }));
+      });
+      req.on('timeout', () => finish(false));
+      req.on('error', () => finish(false));
+    } catch {
+      finish(false);
+    }
   });
 }
 
@@ -257,7 +302,9 @@ export async function run() {
   fs.mkdirSync(configDir, { recursive: true });
   const iconPath = path.join(configDir, 'icon.png');
   let iconReady = true;
-  if (!fs.existsSync(iconPath)) {
+  if (!iconUsable(iconPath)) {
+    // Clears the empty file an earlier failed download left in its place.
+    try { fs.rmSync(iconPath, { force: true }); } catch {}
     const ok = await downloadIcon(iconPath);
     iconReady = ok;
     if (ok) log('    ✓ Notification icon downloaded', 'green');
