@@ -17,6 +17,11 @@ graphify-out/
 __pycache__/
 *.pyc
 
+# donetoast runtime artifacts, written next to the vendored scripts
+assets/windows/donetoast/toast.log
+assets/windows/donetoast/jobs/
+assets/windows/donetoast/progress/
+
 # OS-generated cruft
 Thumbs.db
 .DS_Store

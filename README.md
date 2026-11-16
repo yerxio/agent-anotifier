@@ -63,13 +63,13 @@ That's it. The setup wizard detects your platform and installed AI tools, wires 
 
 ## Features
 
-- **Desktop toast notifications** -- Windows (BurntToast), macOS (Notification Center), Linux (libnotify)
+- **Desktop notifications** -- Windows Codex uses a persistent Donetoast card with a `知道了` button; other Windows tools use BurntToast, macOS uses Notification Center, and Linux uses libnotify
 - **WSL toast routing** -- toasts from inside WSL are routed to Windows over PowerShell interop instead of a Linux notification daemon (see the proof boundary below)
 - **Phone push notifications** -- Android & iOS via [ntfy](https://ntfy.sh) (free, no account required)
 - **Webhook notifications** -- Slack, Discord, Telegram, or any HTTP endpoint, with an optional auth header
 - **Rich notification content** -- Claude Code toasts and webhooks show what the agent actually said or asked, not a generic line
 - **Terminal bell** -- audible ding in the terminal that launched the agent (works over SSH/tmux)
-- **Click-to-focus** -- click the toast to jump back to the terminal or VS Code window (Windows)
+- **Click-to-focus** -- supported Windows native toasts can jump back to the terminal or VS Code window; Codex's Donetoast card currently has an explicit dismiss button, with task navigation planned separately
 - **Turn length** -- "task complete" says how long the turn took (`took 4m 12s`), and `minDurationSeconds` can skip quick turns (Claude Code, Codex, Gemini CLI)
 - **Codex approval alerts** -- get notified the instant Codex asks for permission, not just when it finishes
 - **Per-tool branded icons** -- each tool gets its own logo in the notification
@@ -125,6 +125,8 @@ That's it. The setup wizard detects your platform and installed AI tools, wires 
 </table>
 
 All five tools are wired automatically by the setup wizard. No manual config editing needed. For Claude Code, Codex and Gemini CLI setup also adds a small timing hook (`UserPromptSubmit` for Claude Code and Codex CLI, `BeforeAgent` for Gemini CLI) that only records when a turn started, see [Turn length](#turn-length-and-the-minimum-duration-filter). Codex's `PermissionRequest` hook fires the same "needs your input" alert when Codex asks for approval to run a command -- verified with Codex CLI >=0.144.0.
+
+On Windows, Codex's existing anotifier hooks now deliver their desktop alert through the bundled Donetoast card. The card remains visible until dismissed; its `知道了` button closes it. Phone notifications and other enabled channels continue through anotifier as before.
 
 **Antigravity CLI** (Google's successor to Gemini CLI for Google AI Pro/Ultra and free Code Assist users) reads hooks from its own file, `~/.gemini/config/hooks.json`. Setup wires it when `~/.gemini/antigravity-cli` exists, adding one group named `anotifier` with a `Stop` handler and leaving your other groups alone; `anotifier uninstall` removes only that group. Google's docs say the Antigravity 2.0 app and Antigravity IDE read the same global `~/.gemini/config/hooks.json`, so a handler setup wrote should fire there too, but setup only wires Antigravity when `~/.gemini/antigravity-cli` exists and neither app has been tested. The `Stop` handler answers `{"decision":"stop"}` so it can never keep the agent running. The notification is the generic "Task complete" line, and a `Stop` caused by an error or a cancel says "Task complete" too: anotifier does not read `terminationReason` (its values are not fully documented) or `fullyIdle`, so every `Stop` alerts. Antigravity has no notification or permission event (its events are `PreToolUse`, `PostToolUse`, `PreInvocation`, `PostInvocation` and `Stop`), so there is no "needs input" alert for it. What is verified: hook wiring and payload parsing are unit-tested against the format in [Google's hooks docs](https://antigravity.google/docs/hooks). What is not: there is no live Antigravity CLI lane in CI yet, so it has not been exercised against a real Antigravity CLI run.
 

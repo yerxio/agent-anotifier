@@ -24,7 +24,7 @@ const pkg = require('../package.json');
 // Keyed by toastPlatform(): WSL sends a Windows toast through interop, so it
 // must not be reported as notify-send.
 export const PLATFORM_DISPLAY = {
-  win32: { platform: 'Windows', toast: 'BurntToast' },
+  win32: { platform: 'Windows', toast: 'Donetoast cards (Codex) + BurntToast (other tools)' },
   darwin: { platform: 'macOS', toast: 'osascript' },
   wsl: { platform: 'WSL', toast: 'Windows toast (WSL interop)' },
   linux: { platform: 'Linux', toast: 'notify-send' },
@@ -97,7 +97,7 @@ export async function run() {
   }
 
   const { platform: platLabel, toast: toastLabel } = PLATFORM_DISPLAY[toastPlatform()];
-  const toastExtra = config.toast?.clickToFocus ? c.muted(' (click-to-focus)') : '';
+  const toastExtra = config.toast?.clickToFocus ? c.muted(' (native-toast click-to-focus)') : '';
 
   const toastOff = toastOffNoBackendLabel(config, toastPlatform());
   const toastValue = toastOff ? c.warn(`toast: ${toastOff}`) : `${toastLabel}${toastExtra}`;

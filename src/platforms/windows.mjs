@@ -1,5 +1,6 @@
 // src/platforms/windows.mjs
 import { execFile } from 'node:child_process';
+import fs from 'node:fs';
 import { platform } from 'node:process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +10,9 @@ import { PLAY_SCRIPT, isSoundFilePath, playFirst, prepareSoundFile, windowsPlaye
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TOAST_SCRIPT = path.join(__dirname, '..', '..', 'assets', 'windows', 'toast.ps1');
+const DONETOAST_DIR = path.join(__dirname, '..', '..', 'assets', 'windows', 'donetoast');
+const DONETOAST_SCRIPT = path.join(DONETOAST_DIR, 'donetoast.ps1');
+const DONETOAST_CARD_SCRIPT = path.join(DONETOAST_DIR, 'toast.ps1');
 
 // 7s: the host hook budget is 10s total (hooks.json), shared with stdin read
 // and the other channels — the toast subprocess must never be the thing that
@@ -22,10 +26,10 @@ const TOAST_TIMEOUT_MS = 7000;
 // err.killed is only set when Node itself killed the child, and sendToast only
 // does that on the timeout, so killed alone means timed out. Comparing elapsed
 // time against the timeout would misread a timer that fires a millisecond early.
-export function toastFailureDetail(err, stderr, elapsedMs, timeoutMs = TOAST_TIMEOUT_MS) {
+export function toastFailureDetail(err, stderr, elapsedMs, timeoutMs = TOAST_TIMEOUT_MS, executable = 'pwsh') {
   let cause;
   if (err?.killed) cause = `timed out after ${timeoutMs} ms`;
-  else if (err?.code === 'ENOENT') cause = 'pwsh not found';
+  else if (err?.code === 'ENOENT') cause = `${executable} not found`;
   else if (typeof err?.code === 'number') cause = `exit code ${err.code}`;
   else if (typeof err?.code === 'string' && err.code) cause = err.code;
   else if (err?.signal) cause = `killed by ${err.signal}`;
@@ -39,6 +43,30 @@ export function toastFailureDetail(err, stderr, elapsedMs, timeoutMs = TOAST_TIM
   };
 }
 
+function sendDonetoast(notification, { execFileImpl, log }) {
+  const args = [
+    '-NoProfile', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass', '-File', DONETOAST_SCRIPT,
+    '-Title', notification.title || 'Codex',
+    '-Message', notification.message || '',
+    '-App', 'Codex',
+    '-AcknowledgeLabel', '知道了',
+  ];
+  if (notification.event === 'needs_input') args.push('-Waiting');
+  else if (notification.event === 'task_complete' && /\bTask failed\b/i.test(notification.message || '')) args.push('-Failed');
+
+  return new Promise((resolve) => {
+    const started = Date.now();
+    execFileImpl('powershell.exe', args, { timeout: TOAST_TIMEOUT_MS, windowsHide: true }, (err, stdout, stderr) => {
+      if (err) {
+        const detail = toastFailureDetail(err, stderr, Date.now() - started, TOAST_TIMEOUT_MS, 'powershell.exe');
+        log('toast:donetoast', new Error(`donetoast.ps1 failed: ${detail.cause}`), detail);
+        noteFailure('toast', execFailureReason(err));
+      }
+      resolve(!err);
+    });
+  });
+}
+
 // deps are injectable for tests: the platform, execFile, the spawn that starts
 // the sound player, and the error logger.
 export async function sendToast(notification, deps = {}) {
@@ -46,6 +74,12 @@ export async function sendToast(notification, deps = {}) {
   if (host !== 'win32') {
     noteFailure('toast', 'unsupported');
     return false;
+  }
+
+  // Windows Codex uses donetoast's persistent card, with an explicit
+  // acknowledgement button. Other tools keep the existing native-toast path.
+  if (notification.source === 'codex' && fs.existsSync(DONETOAST_SCRIPT) && fs.existsSync(DONETOAST_CARD_SCRIPT)) {
+    return sendDonetoast(notification, { execFileImpl, log });
   }
 
   // A custom sound file plays in its own detached pwsh and the toast is made

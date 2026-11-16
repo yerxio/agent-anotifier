@@ -9,8 +9,21 @@ import { STAR_LINE } from '../../src/support.mjs';
 
 const readJSON = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
 
+function seedSetupResources(home) {
+  // Keep setup e2e hermetic: no public icon download or PowerShell Gallery install.
+  fs.mkdirSync(path.join(home, '.anotifier'), { recursive: true });
+  fs.writeFileSync(path.join(home, '.anotifier', 'icon.png'), 'fixture icon');
+  const modulePath = path.join(home, 'ps-modules');
+  const burntToastDir = path.join(modulePath, 'BurntToast');
+  fs.mkdirSync(burntToastDir, { recursive: true });
+  fs.writeFileSync(path.join(burntToastDir, 'BurntToast.psd1'), "@{ ModuleVersion = '1.0.0'; GUID = '00000000-0000-4000-8000-000000000001'; RootModule = 'BurntToast.psm1' }\n");
+  fs.writeFileSync(path.join(burntToastDir, 'BurntToast.psm1'), '');
+  return { PSModulePath: modulePath };
+}
+
 describe('real setup subprocess wires every detected tool', () => {
   const home = seedTempHome();
+  const setupEnv = seedSetupResources(home);
   const topic = randomTopic('setup');
   after(() => fs.rmSync(home, { recursive: true, force: true }));
 
@@ -18,7 +31,7 @@ describe('real setup subprocess wires every detected tool', () => {
   const answers = ['y', 'https://ntfy.sh', topic].join('\n') + '\n';
 
   it('patches Claude, Codex, Cursor, and Gemini and saves the topic', () => {
-    const res = runNode(['cli/index.mjs', 'setup'], { home, stdin: answers });
+    const res = runNode(['cli/index.mjs', 'setup'], { home, stdin: answers, extraEnv: setupEnv });
     assert.equal(res.status, 0, `setup exited non-zero: ${res.stderr}`);
 
     // The star ask prints exactly once, in the success summary.
@@ -38,6 +51,11 @@ describe('real setup subprocess wires every detected tool', () => {
     const codex = readJSON(path.join(home, '.codex', 'hooks.json'));
     assert.ok(codex.hooks.Stop?.length, 'codex Stop hook');
     assert.ok(codex.hooks.SessionStart?.length, 'codex SessionStart hook');
+    assert.match(codex.hooks.Stop[0].hooks[0].command, /notify\.mjs/, 'Codex retains anotifier routing so phone/webhook channels remain available');
+    if (process.platform === 'win32') {
+      assert.match(res.stdout, /Donetoast card backend ready for Codex/);
+      assert.match(res.stdout, /Codex CLI \(Donetoast cards\)/);
+    }
     const toml = fs.readFileSync(path.join(home, '.codex', 'config.toml'), 'utf8');
     assert.match(toml, /hooks = true/);
     assert.match(toml, /trusted_hash = "sha256:/);
@@ -54,7 +72,7 @@ describe('real setup subprocess wires every detected tool', () => {
   });
 
   it('is idempotent at the subprocess level (re-run adds no duplicates)', () => {
-    const res = runNode(['cli/index.mjs', 'setup'], { home, stdin: answers });
+    const res = runNode(['cli/index.mjs', 'setup'], { home, stdin: answers, extraEnv: setupEnv });
     assert.equal(res.status, 0, `second setup exited non-zero: ${res.stderr}`);
 
     const claude = readJSON(path.join(home, '.claude', 'settings.json'));
@@ -117,8 +135,9 @@ describe('setup with partial / no tools installed', () => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'aan-partial-'));
     fs.mkdirSync(path.join(home, '.claude'), { recursive: true });
     fs.writeFileSync(path.join(home, '.claude', 'settings.json'), '{}\n');
+    const setupEnv = seedSetupResources(home);
     try {
-      const res = runNode(['cli/index.mjs', 'setup'], { home, stdin: 'n\n' }); // n = skip ntfy
+      const res = runNode(['cli/index.mjs', 'setup'], { home, stdin: 'n\n', extraEnv: setupEnv }); // n = skip ntfy
       assert.equal(res.status, 0, `setup exited non-zero: ${res.stderr}`);
       const claude = readJSON(path.join(home, '.claude', 'settings.json'));
       assert.ok(claude.hooks.Stop?.length, 'claude patched');
@@ -138,6 +157,25 @@ describe('setup with partial / no tools installed', () => {
       assert.equal(res.status, 1, `setup should exit 1 when no tools are found: ${res.stderr}`);
       assert.match(res.stdout, /No supported AI tools/i);
       assert.ok(!res.stdout.includes(STAR_LINE), 'no star ask after a failed setup');
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('Windows Codex-only setup', () => {
+  it('uses bundled Donetoast without requiring PowerShell 7 or BurntToast', (t) => {
+    if (process.platform !== 'win32') return t.skip('Windows setup behavior');
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'aan-codex-only-'));
+    fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
+    const setupEnv = seedSetupResources(home);
+    try {
+      const res = runNode(['cli/index.mjs', 'setup'], { home, stdin: 'n\n', extraEnv: setupEnv });
+      assert.equal(res.status, 0, `setup exited non-zero: ${res.stderr}`);
+      assert.match(res.stdout, /Donetoast card backend ready for Codex/);
+      assert.match(res.stdout, /Donetoast is self-contained for Codex/);
+      assert.doesNotMatch(res.stdout, /BurntToast module ready/);
+      assert.match(readJSON(path.join(home, '.codex', 'hooks.json')).hooks.Stop[0].hooks[0].command, /notify\.mjs/);
     } finally {
       fs.rmSync(home, { recursive: true, force: true });
     }

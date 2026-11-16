@@ -12,7 +12,11 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WIN_DIR = path.join(repoRoot, 'assets', 'windows');
-const SCRIPTS = ['toast.ps1', 'bell.ps1', 'focus-window.ps1', 'toast-wsl.ps1', 'play-sound.ps1'];
+const SCRIPTS = [
+  ...['toast.ps1', 'bell.ps1', 'focus-window.ps1', 'toast-wsl.ps1', 'play-sound.ps1'].map((name) => path.join('assets', 'windows', name)),
+  path.join('assets', 'windows', 'donetoast', 'toast.ps1'),
+  path.join('assets', 'windows', 'donetoast', 'donetoast.ps1'),
+];
 
 // True only when a usable pwsh is on PATH (spawn succeeds). Lets the parse checks
 // skip cleanly on runners without PowerShell 7 installed.
@@ -34,7 +38,7 @@ function paramBlock(src) {
   return null;
 }
 
-describe('assets/windows/*.ps1 parse clean (Windows + pwsh only)', () => {
+describe('Windows PowerShell scripts parse clean (Windows + pwsh only)', () => {
   const isWindows = os.platform() === 'win32';
   const havePwsh = isWindows && pwshAvailable();
 
@@ -42,7 +46,7 @@ describe('assets/windows/*.ps1 parse clean (Windows + pwsh only)', () => {
     it(`${name} has no PowerShell parse errors`, (t) => {
       if (!isWindows) return t.skip('not Windows');
       if (!havePwsh) return t.skip('pwsh not available');
-      const abs = path.join(WIN_DIR, name);
+      const abs = path.join(repoRoot, name);
       // Parse the file with the PS language parser; any ParseError -> exit 1.
       const psCmd = `$errs = $null; [System.Management.Automation.Language.Parser]::ParseFile('${abs}', [ref]$null, [ref]$errs) | Out-Null; if ($errs -and $errs.Count) { $errs | ForEach-Object { [Console]::Error.WriteLine($_.Message) }; exit 1 }`;
       const res = spawnSync('pwsh', ['-NoProfile', '-Command', psCmd], { encoding: 'utf8' });

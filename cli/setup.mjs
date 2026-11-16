@@ -77,6 +77,11 @@ function resolveNotifyPath() {
   return path.join(getConfigDir(), 'src', 'notify.mjs');
 }
 
+function donetoastBundleReady() {
+  const dir = path.resolve(__dirname, '..', 'assets', 'windows', 'donetoast');
+  return ['donetoast.ps1', 'toast.ps1'].every((name) => fs.existsSync(path.join(dir, name)));
+}
+
 function downloadIcon(destPath) {
   return new Promise((resolve) => {
     const url = 'https://claude.ai/images/claude_app_icon.png';
@@ -196,23 +201,50 @@ export async function run() {
   // 3. Toast backend
   log('\n  Installing toast backend...', 'cyan');
   let toastReady = true;
+  let codexDonetoastReady = false;
   if (PLATFORM === 'win32') {
-    // Toasts run only through PowerShell 7; without it the BurntToast install
-    // below would fail with a message that hides the real cause.
-    let hasPwsh = true;
-    try { execSync('where pwsh', { stdio: 'pipe', timeout: 10000 }); } catch (err) { hasPwsh = isProbeTimeout(err) ? null : false; }
-    if (hasPwsh === null) {
-      toastReady = null;
-      log('    ? PowerShell 7 check timed out — leaving toasts as they are; re-run setup to retry', 'yellow');
-    } else if (!hasPwsh) {
-      toastReady = false;
-      log('    ✗ PowerShell 7 (pwsh) not found — Windows toasts need it', 'yellow');
-      log('      winget install --id Microsoft.PowerShell --source winget, then re-run: anotifier setup', 'dim');
+    if (tools.some((tool) => tool.name === 'codex')) {
+      codexDonetoastReady = donetoastBundleReady();
+      if (codexDonetoastReady) {
+        log('    ✓ Donetoast card backend ready for Codex (click “知道了” to dismiss)', 'green');
+      } else {
+        log('    ✗ Bundled Donetoast scripts missing — Codex will use the standard Windows toast backend', 'yellow');
+      }
+    }
+
+    // Donetoast is the Codex-only card backend; BurntToast remains the backend
+    // for other tools. A Codex-only setup needs neither PowerShell 7 nor BurntToast.
+    const needsBurntToast = tools.some((tool) => tool.name !== 'codex') || !codexDonetoastReady;
+    if (!needsBurntToast) {
+      log('    ✓ Donetoast is self-contained for Codex (Windows PowerShell + WPF)', 'green');
     } else {
-      const bt = installBurntToast();
-      if (bt === 'ready') log('    ✓ BurntToast module ready', 'green');
-      else if (bt === 'unknown') { toastReady = null; log('    ? BurntToast check timed out — leaving toasts as they are; re-run setup to retry', 'yellow'); }
-      else { toastReady = false; log('    ✗ BurntToast install failed — toasts may not work', 'yellow'); }
+      // Toasts run only through PowerShell 7; without it the BurntToast install
+      // below would fail with a message that hides the real cause.
+      let hasPwsh = true;
+      try { execSync('where pwsh', { stdio: 'pipe', timeout: 10000 }); } catch (err) { hasPwsh = isProbeTimeout(err) ? null : false; }
+      if (hasPwsh === null) {
+        toastReady = null;
+        log('    ? PowerShell 7 check timed out — leaving toasts as they are; re-run setup to retry', 'yellow');
+      } else if (!hasPwsh) {
+        toastReady = false;
+        log('    ✗ PowerShell 7 (pwsh) not found — standard Windows toasts need it', 'yellow');
+        log('      winget install --id Microsoft.PowerShell --source winget, then run: anotifier setup', 'dim');
+      } else {
+        const bt = installBurntToast();
+        if (bt === 'ready') log('    ✓ BurntToast module ready (other Windows tools)', 'green');
+        else if (bt === 'unknown') { toastReady = null; log('    ? BurntToast check timed out — leaving toasts as they are; re-run setup to retry', 'yellow'); }
+        else { toastReady = false; log('    ✗ BurntToast install failed — standard Windows toasts may not work', 'yellow'); }
+      }
+    }
+    // The toast channel is shared by all tools. Keep it enabled when Codex has
+    // its bundled Donetoast backend even if BurntToast is unavailable; this
+    // preserves Codex cards and makes the limitation for other tools explicit.
+    if (codexDonetoastReady && toastReady !== true) {
+      toastReady = true;
+      log('    ✓ Codex card notifications remain enabled via Donetoast', 'green');
+      if (tools.some((tool) => tool.name !== 'codex')) {
+        log('    ! Other Windows tools still need PowerShell 7 + BurntToast for desktop notifications', 'yellow');
+      }
     }
   } else if (PLATFORM === 'darwin') {
     log('    ✓ osascript (built-in)', 'green');
@@ -299,7 +331,10 @@ export async function run() {
   for (const tool of tools) {
     try {
       patchers[tool.name](tool.dir, notifyPath, backupDir);
-      log(`    ✓ ${tool.label}`, 'green');
+      const suffix = tool.name === 'codex' && PLATFORM === 'win32' && codexDonetoastReady
+        ? ' (Donetoast cards)'
+        : '';
+      log(`    ✓ ${tool.label}${suffix}`, 'green');
     } catch (err) {
       log(`    ✗ ${tool.label}: ${err.message}`, 'red');
       failures.push({ tool: tool.label, name: tool.name, reason: err.message });
