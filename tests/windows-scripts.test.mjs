@@ -13,7 +13,8 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WIN_DIR = path.join(repoRoot, 'assets', 'windows');
 const SCRIPTS = [
-  ...['toast.ps1', 'bell.ps1', 'focus-window.ps1', 'toast-wsl.ps1', 'play-sound.ps1'].map((name) => path.join('assets', 'windows', name)),
+  ...['toast.ps1', 'bell.ps1', 'focus-window.ps1', 'toast-wsl.ps1', 'play-sound.ps1', 'ancestor-hwnd.ps1']
+    .map((name) => path.join('assets', 'windows', name)),
   path.join('assets', 'windows', 'donetoast', 'toast.ps1'),
   path.join('assets', 'windows', 'donetoast', 'donetoast.ps1'),
 ];

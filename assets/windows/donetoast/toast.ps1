@@ -5,6 +5,8 @@
 # Usage: toast.ps1 -Title "Render finished" -Message "frame_12.png ready" [-Failed | -Waiting] [-Seconds 20]
 #   Click to dismiss. -Seconds closes it automatically after that many seconds (0 = stays until clicked).
 #   -App: source name in the header (Claude, Codex, ...). -Icon: 44 px image (default: icons\<app>.png, else icon.png).
+#   -ProjectName / -Cwd (anotifier): clicking the card brings that project's terminal or IDE window back to the
+#     front before the card closes. The acknowledgement button stays dismiss-only.
 #   -Id <name>: live card. It follows progress\<name>.json (written by donetoast.ps1 -Id), shows a progress bar
 #     and an estimate of the time left, and turns into a done / failed card when the job ends. Deleting the file closes it.
 #   -Preview <folder>: render PNG frames off-screen instead of opening a window (README images); -PreviewY = vertical offset per frame.
@@ -18,6 +20,9 @@ param(
   [int]$Seconds = 0,
   [string]$App = 'Claude',
   [string]$AcknowledgeLabel = '',
+  [string]$ProjectName = '',
+  [string]$Cwd = '',
+  [int64]$Hwnd = 0,
   [string]$Icon = '',
   [string]$Time = '',
   [string]$Preview = '',
@@ -273,7 +278,37 @@ if ($Id) {
   })
 }
 
+# anotifier: bring the agent's own window back to the front. It hands
+# focus-window.ps1 exactly the argument the agentfocus:// protocol handler
+# receives, so the window is activated through ShowWindow / BringWindowToTop /
+# SwitchToThisWindow / SetForegroundWindow on a handle — the same code path the
+# native toast's click uses, with no protocol to register.
+#
+# -Hwnd is the handle donetoast.ps1 resolved from the process chain, and is
+# what makes this work on a terminal whose tab title says something other than
+# the project name. focus-window.ps1 tries the title first and falls back to
+# the handle, which is how the native backend orders it too.
+#
+# Run IN THIS process rather than a spawned child: the clicked card owns the
+# foreground window, so Windows lets it hand focus over; a detached child has
+# no such right and SetForegroundWindow would be refused.
+$focus = {
+  if (-not $ProjectName -and -not $Cwd -and $Hwnd -le 0) { return }
+  try {
+    $handler = Join-Path $PSScriptRoot '..\focus-window.ps1'
+    if (-not (Test-Path -LiteralPath $handler)) { return }
+    $name = if ($ProjectName) { [uri]::EscapeDataString($ProjectName) } else { '_' }
+    $query = @()
+    if ($Hwnd -gt 0) { $query += "hwnd=$Hwnd" }
+    if ($Cwd) { $query += "cwd=$([uri]::EscapeDataString($Cwd))" }
+    $arg = "$name/"
+    if ($query.Count) { $arg += '?' + ($query -join '&') }
+    & $handler -Arg $arg
+  } catch {}
+}
+
 $w.add_MouseLeftButtonUp({
+  & $focus
   if ($Id -and $script:poll) {
     # Running job: hide this card but keep following it; a new card shows up when it ends. Anything else: dismiss.
     if ($script:cur.state -eq 'running') { New-Item -ItemType File -Force "$dir\$Id.muted" | Out-Null }

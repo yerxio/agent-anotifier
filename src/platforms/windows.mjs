@@ -80,6 +80,18 @@ function sendDonetoast(notification, { execFileImpl, log }) {
   if (notification.event === 'needs_input') args.push('-Waiting');
   else if (notification.event === 'task_complete' && /\bTask failed\b/i.test(notification.message || '')) args.push('-Failed');
 
+  // Click-to-focus. The card resolves the window itself from these two (the
+  // $focus block in donetoast/toast.ps1), so unlike the native toast there is
+  // no agentfocus:// protocol to register and no window handle to capture —
+  // which is also why it works on a machine where the native backend was
+  // never installed.
+  if (notification.clickToFocus === false) {
+    args.push('-ClickToFocus', 'false');
+  } else {
+    if (notification.projectName) args.push('-ProjectName', notification.projectName);
+    if (notification.cwd) args.push('-Cwd', notification.cwd);
+  }
+
   return new Promise((resolve) => {
     const started = Date.now();
     execFileImpl('powershell.exe', args, { timeout: TOAST_TIMEOUT_MS, windowsHide: true }, (err, stdout, stderr) => {
