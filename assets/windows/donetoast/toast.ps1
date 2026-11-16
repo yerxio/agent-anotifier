@@ -93,6 +93,11 @@ $looks = @{
   failed  = @('#E5604F', 0xE7BA, 'failed',    'failed.wav')
   waiting = @('#E8B04B', 0xE8BD, 'needs you', 'waiting.wav')
   running = @('#1A9FFF', 0xE916, 'running',   $null)
+  # anotifier: two states for things that are neither a finished task nor a
+  # request. Without them a "background agent finished" notice or a usage-limit
+  # warning had to borrow "needs you" or "done", and said the wrong thing.
+  info    = @('#6CB4EE', 0xE946, 'info',      'done.wav')
+  warning = @('#E8B04B', 0xE7BA, 'warning',   'waiting.wav')
 }
 if (-not $Icon) { $Icon = "$PSScriptRoot\icons\$($App.ToLowerInvariant()).png"; if (-not (Test-Path $Icon)) { $Icon = "$PSScriptRoot\icon.png" } }
 

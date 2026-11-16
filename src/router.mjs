@@ -188,6 +188,10 @@ export function route(event, config) {
     // rather than in the sender because notify.mjs resolves the config once per
     // run — a channel must never re-read it.
     toastCards: config.toast?.cards !== false,
+    // A notice nothing is waiting on (a background agent finished, the usage
+    // limit lifted). It is still a needs_input event for routing, so a backend
+    // that shows a state — the Windows card — needs this to not say "needs you".
+    ...(info ? { informational: true } : {}),
     event: event.event,
     source: event.source,
     projectName: event.projectName,

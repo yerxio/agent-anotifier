@@ -50,6 +50,16 @@ the end of the message it was the first thing a long text pushed off the card.
 The same function sends the project name alone as the title — the header
 already names the tool.
 
+### Two more states: info and warning
+
+Upstream has `done`, `failed`, `waiting` ("needs you") and `running`. The card
+prints the state word next to the tool name, so a notification that is none of
+those had to borrow one and said the wrong thing — "Claude · needs you" for a
+background agent that had simply finished. `toast.ps1` gains `info` (blue) and
+`warning` (amber) in `$looks`, selected with its existing `-State`;
+`donetoast.ps1` gains `-Info` and `-Warning`. `cardState()` in
+`src/platforms/windows.mjs` decides which one a notification is.
+
 ### The user's own sound
 
 `-Sound <name or .wav path>` and `-Silent` on both scripts, fed from the same

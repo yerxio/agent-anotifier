@@ -88,13 +88,12 @@ export function focusValue(config) {
   return config.suppressWhenFocused === true ? c.white('skip alerts while the agent window is in front') : c.muted('off');
 }
 
-// On Windows the hook notifications are Donetoast cards and the statusline's
-// usage/context alerts stay on BurntToast, so the row names both. `toast.cards:
-// false` puts everything back on BurntToast and the row says just that.
+// On Windows every desktop notification is a Donetoast card. `toast.cards:
+// false` puts them all back on BurntToast and the row says that instead.
 export function windowsToastLabel(config) {
   return config?.toast?.cards === false
     ? PLATFORM_DISPLAY.win32.toast
-    : 'Donetoast cards + BurntToast alerts';
+    : 'Donetoast cards';
 }
 
 export async function run() {
@@ -111,9 +110,8 @@ export async function run() {
   const toastLabel = platform === 'win32' ? windowsToastLabel(config) : PLATFORM_DISPLAY[platform].toast;
   const toastOff = toastOffNoBackendLabel(config, platform);
 
-  // With cards on there is no click-to-focus to report: a card is dismiss-only,
-  // and the native toasts that remain (the statusline alerts) always send
-  // clickToFocus: false. The note only describes the all-native setup.
+  // With cards on there is no click-to-focus to report: a card is dismiss-only.
+  // The note only describes the all-native setup.
   const focusOn = !toastOff && config.toast?.clickToFocus;
   const toastExtra = focusOn && !cards ? c.muted(' (click-to-focus)') : '';
   const toastValue = toastOff ? c.warn(`toast: ${toastOff}`) : `${toastLabel}${toastExtra}`;

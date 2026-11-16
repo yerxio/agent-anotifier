@@ -14,12 +14,30 @@ const DONETOAST_DIR = path.join(__dirname, '..', '..', 'assets', 'windows', 'don
 const DONETOAST_SCRIPT = path.join(DONETOAST_DIR, 'donetoast.ps1');
 const DONETOAST_CARD_SCRIPT = path.join(DONETOAST_DIR, 'toast.ps1');
 
-// The hook notifications the card backend renders — every tool's, not just
-// Codex's. The statusline's usage-limit and context-window alerts are
-// deliberately absent: their text is a two-sentence warning that the card's
-// single ellipsized line would cut in half, so they stay on the native toast,
-// which wraps and keeps click-to-focus.
-const CARD_EVENTS = new Set(['task_complete', 'needs_input', 'session_start']);
+// The events a tool's own hook produces. Their shared title is
+// "<project> · <tool label>", which the card re-cuts (see cardContent); every
+// other notification — the statusline's usage and context warnings, the update
+// notice — has a headline for a title and keeps it.
+const HOOK_EVENTS = new Set(['task_complete', 'needs_input', 'session_start']);
+
+// Which of the card's states a notification is. The card puts the state word
+// next to the tool name ("Claude · needs you"), so a wrong state is a wrong
+// statement, not a wrong colour:
+//   waiting  the agent is blocked on the user
+//   info     something happened and nothing waits: a notice Claude Code sends
+//            through the same Notification hook as its prompts (a background
+//            agent finished), a session start, the update notice, anything else
+//   warning  the usage-limit and context-window warnings
+//   failed   a run that ended in an error
+//   done     a finished turn
+export function cardState(notification) {
+  const { event } = notification;
+  if (event === 'needs_input') return notification.informational ? 'info' : 'waiting';
+  if (event === 'task_complete') return /\bTask failed\b/i.test(notification.message || '') ? 'failed' : 'done';
+  if (event === 'usage_limit' || event === 'context_limit') return 'warning';
+  return 'info';
+}
+const STATE_FLAG = { waiting: '-Waiting', failed: '-Failed', info: '-Info', warning: '-Warning' };
 
 // donetoast reads -App for BOTH the card header and icons/<app>.png, so this is
 // the capitalized source token, never the config's display label ('Claude Code'
@@ -30,12 +48,12 @@ export function cardAppName(source) {
   return source.charAt(0).toUpperCase() + source.slice(1);
 }
 
-// Cards are the Windows default for hook notifications; `toast.cards: false` in
-// the config puts every tool back on the native toast, and a bundle that did
-// not ship (or was deleted) falls back on its own.
+// Every desktop notification on Windows is a card: one look, and no dependency
+// on PowerShell 7 or BurntToast. `toast.cards: false` in the config puts all of
+// them back on the native toast, and a bundle that did not ship (or was
+// deleted) falls back on its own.
 export function wantsCard(notification) {
   return notification.toastCards !== false
-    && CARD_EVENTS.has(notification.event)
     && fs.existsSync(DONETOAST_SCRIPT)
     && fs.existsSync(DONETOAST_CARD_SCRIPT);
 }
@@ -87,7 +105,8 @@ export function cardContent(notification) {
   let message = notification.message || '';
   const suffix = ` (took ${duration})`;
   if (duration && message.endsWith(suffix)) message = message.slice(0, -suffix.length);
-  return { app, title: project || notification.title || app, message, duration };
+  const hookTitle = HOOK_EVENTS.has(notification.event) ? project : '';
+  return { app, title: hookTitle || notification.title || app, message, duration };
 }
 
 // How the card should sound, from the same `toastSound` the native toast reads
@@ -122,8 +141,8 @@ async function sendDonetoast(notification, { execFileImpl, log, ...soundDeps }) 
     '-AcknowledgeLabel', '知道了',
   ];
   if (card.duration) args.push('-Duration', card.duration);
-  if (notification.event === 'needs_input') args.push('-Waiting');
-  else if (notification.event === 'task_complete' && /\bTask failed\b/i.test(notification.message || '')) args.push('-Failed');
+  const stateFlag = STATE_FLAG[cardState(notification)];
+  if (stateFlag) args.push(stateFlag);
   args.push(...await cardSoundArgs(notification, { log, ...soundDeps }));
 
   return new Promise((resolve) => {
@@ -148,7 +167,7 @@ export async function sendToast(notification, deps = {}) {
     return false;
   }
 
-  // Hook notifications render as donetoast's persistent card, with an explicit
+  // Notifications render as donetoast's persistent card, with an explicit
   // acknowledgement button. Everything else — the statusline alerts, and every
   // tool when `toast.cards` is off — keeps the native-toast path below.
   if (wantsCard(notification)) {

@@ -210,10 +210,9 @@ export async function run() {
       log('    ✗ Bundled Donetoast scripts missing — falling back to the standard Windows toast', 'yellow');
     }
 
-    // BurntToast is no longer what delivers a tool's notifications, but it is
-    // still the backend for the statusline's usage-limit and context-window
-    // alerts, and the fallback whenever `toast.cards` is off. So it is still
-    // installed — a failure just stops being fatal when the cards are there.
+    // BurntToast no longer delivers anything while the cards are on, but it is
+    // the backend `toast.cards: false` falls back to. So it is still installed
+    // — a failure just stops being fatal when the cards are there.
     // pwsh is probed first: without it the install below would fail with a
     // message that hides the real cause.
     let hasPwsh = true;
@@ -223,21 +222,21 @@ export async function run() {
       log('    ? PowerShell 7 check timed out — leaving toasts as they are; re-run setup to retry', 'yellow');
     } else if (!hasPwsh) {
       toastReady = false;
-      log('    ✗ PowerShell 7 (pwsh) not found — usage-limit alerts need it', 'yellow');
+      log('    ✗ PowerShell 7 (pwsh) not found — the native toast fallback needs it', 'yellow');
       log('      winget install --id Microsoft.PowerShell --source winget, then run: anotifier setup', 'dim');
     } else {
       const bt = installBurntToast();
-      if (bt === 'ready') log('    ✓ BurntToast module ready (usage-limit and context alerts)', 'green');
+      if (bt === 'ready') log('    ✓ BurntToast module ready (fallback when toast.cards is off)', 'green');
       else if (bt === 'unknown') { toastReady = null; log('    ? BurntToast check timed out — leaving toasts as they are; re-run setup to retry', 'yellow'); }
-      else { toastReady = false; log('    ✗ BurntToast install failed — usage-limit alerts may not work', 'yellow'); }
+      else { toastReady = false; log('    ✗ BurntToast install failed — the native toast fallback may not work', 'yellow'); }
     }
-    // The toast channel is shared by all tools, and the cards carry every hook
-    // notification on their own. So a missing BurntToast must not disable the
-    // channel — it only costs the statusline alerts, which is said plainly.
+    // The cards carry every desktop notification on their own, so a missing
+    // BurntToast must not disable the toast channel — it only costs the
+    // fallback, which is said plainly.
     if (donetoastReady && toastReady !== true) {
       toastReady = true;
-      log('    ✓ Tool notifications remain enabled via Donetoast cards', 'green');
-      log('    ! Usage-limit and context alerts still need PowerShell 7 + BurntToast', 'yellow');
+      log('    ✓ Desktop notifications remain enabled via Donetoast cards', 'green');
+      log('    ! Setting toast.cards to false would need PowerShell 7 + BurntToast', 'yellow');
     }
   } else if (PLATFORM === 'darwin') {
     log('    ✓ osascript (built-in)', 'green');

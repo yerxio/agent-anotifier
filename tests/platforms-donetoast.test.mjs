@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sendToast, wantsCard, cardAppName, cardContent, cardSoundArgs } from '../src/platforms/windows.mjs';
+import { sendToast, wantsCard, cardAppName, cardContent, cardSoundArgs, cardState } from '../src/platforms/windows.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const donetoastDir = path.join(root, 'assets', 'windows', 'donetoast');
@@ -70,25 +70,73 @@ test('`toast.cards: false` puts every tool back on the native toast', async () =
   assert.equal(argOf(seen.args, '-ClickToFocus'), 'true');
 });
 
-test('the statusline alerts keep the native toast: a card would cut their text in half', async () => {
+test('the statusline warnings are warning cards and keep their headline as the title', async () => {
   for (const event of ['usage_limit', 'context_limit']) {
     const { seen, deps } = capture();
     await sendToast({
       title: 'Claude Code · 5h limit at 85%', message: 'chat crossed 85% of the 5h usage limit. Resets 14:30.',
-      source: 'claude', event, clickToFocus: false,
+      source: 'claude', event, projectName: 'chat', clickToFocus: false,
     }, deps);
-    assert.equal(seen.file, 'pwsh', event);
-    assert.equal(argOf(seen.args, '-File'), path.join(root, 'assets', 'windows', 'toast.ps1'), event);
+    assert.equal(seen.file, 'powershell.exe', event);
+    assert.ok(seen.args.includes('-Warning'), event);
+    // Not a hook event: the title is the headline, not a project name to
+    // re-cut — replacing it with "chat" would drop what the warning is about.
+    assert.equal(argOf(seen.args, '-Title'), 'Claude Code · 5h limit at 85%', event);
   }
 });
 
-test('wantsCard needs the bundle, a card event, and the config switch', () => {
-  assert.equal(wantsCard({ event: 'task_complete' }), true);
-  assert.equal(wantsCard({ event: 'needs_input' }), true);
-  assert.equal(wantsCard({ event: 'session_start' }), true);
-  assert.equal(wantsCard({ event: 'usage_limit' }), false);
-  assert.equal(wantsCard({ event: undefined }), false);
+test('the update notice is an info card under the product name', async () => {
+  const { seen, deps } = capture();
+  await sendToast({ title: 'anotifier v9.9.9 available', message: 'You have v1.0.0', event: 'update_available' }, deps);
+  assert.equal(seen.file, 'powershell.exe');
+  assert.ok(seen.args.includes('-Info'));
+  assert.equal(argOf(seen.args, '-App'), 'anotifier');
+  assert.equal(argOf(seen.args, '-Title'), 'anotifier v9.9.9 available');
+});
+
+test('cardState says what the notification is, not just which hook sent it', () => {
+  assert.equal(cardState({ event: 'task_complete', message: 'Task complete' }), 'done');
+  assert.equal(cardState({ event: 'task_complete', message: 'p: Task failed' }), 'failed');
+  assert.equal(cardState({ event: 'needs_input' }), 'waiting');
+  // Claude Code sends "a background agent finished" through the same
+  // Notification hook as its prompts. Nothing is waiting on the user, so the
+  // card must not say "needs you".
+  assert.equal(cardState({ event: 'needs_input', informational: true }), 'info');
+  assert.equal(cardState({ event: 'usage_limit' }), 'warning');
+  assert.equal(cardState({ event: 'context_limit' }), 'warning');
+  assert.equal(cardState({ event: 'update_available' }), 'info');
+  assert.equal(cardState({ event: 'session_start' }), 'info');
+  assert.equal(cardState({}), 'info');
+});
+
+test('an informational Claude notice reaches the card as info, a prompt as waiting', async () => {
+  const { route } = await import('../src/router.mjs');
+  const config = { toast: {}, events: { needs_input: {} }, sources: {} };
+  const notice = route({ source: 'claude', event: 'needs_input', notificationType: 'agent_completed' }, config);
+  assert.equal(notice.informational, true);
+  assert.equal(cardState(notice), 'info');
+  const prompt = route({ source: 'claude', event: 'needs_input', notificationType: 'permission_prompt' }, config);
+  assert.equal(prompt.informational, undefined);
+  assert.equal(cardState(prompt), 'waiting');
+});
+
+test('wantsCard: every notification, unless the config says otherwise', () => {
+  for (const event of ['task_complete', 'needs_input', 'session_start', 'usage_limit', 'update_available', undefined]) {
+    assert.equal(wantsCard({ event }), true, String(event));
+  }
   assert.equal(wantsCard({ event: 'task_complete', toastCards: false }), false);
+  assert.equal(wantsCard({ event: 'usage_limit', toastCards: false }), false);
+});
+
+test('both card scripts know the info and warning states', () => {
+  const toast = fs.readFileSync(path.join(donetoastDir, 'toast.ps1'), 'utf8');
+  const launcher = fs.readFileSync(path.join(donetoastDir, 'donetoast.ps1'), 'utf8');
+  assert.match(toast, /info\s+= @\('#[0-9A-Fa-f]{6}', 0x[0-9A-F]{4}, 'info',/);
+  assert.match(toast, /warning = @\('#[0-9A-Fa-f]{6}', 0x[0-9A-F]{4}, 'warning',/);
+  assert.match(launcher, /\[switch\]\$Info/);
+  assert.match(launcher, /\[switch\]\$Warning/);
+  assert.match(launcher, /' -State info'/);
+  assert.match(launcher, /' -State warning'/);
 });
 
 test('cardAppName feeds both the header and the icon lookup', () => {

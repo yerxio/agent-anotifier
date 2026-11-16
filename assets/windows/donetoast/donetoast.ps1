@@ -12,6 +12,8 @@
 #     donetoast.ps1 -Id upload -Done | -Failed [-Message "..."]          -> turns it into a done / failed card
 #   -App Codex -> show Codex's name and icon in the header (default: Claude).
 #   -AcknowledgeLabel '知道了' -> add a named button that dismisses the card.
+#   -Info / -Warning (anotifier) -> blue "info" card / amber "warning" card, for notices that are
+#     neither a finished task nor a request for input.
 #   -Duration '4m 12s' (anotifier) -> shown in the card header after the state word.
 #   -Sound IM | Reminder | C:\path\done.wav (anotifier) -> play that instead of the card's own chime;
 #     -Silent -> play nothing (the caller is playing its own audio).
@@ -30,7 +32,9 @@ param(
   [string]$AcknowledgeLabel = '',
   [string]$Duration = '',
   [string]$Sound = '',
-  [switch]$Silent
+  [switch]$Silent,
+  [switch]$Info,
+  [switch]$Warning
 )
 
 $root = $PSScriptRoot
@@ -60,7 +64,7 @@ if ($Command) {
 
 if (-not $Id) {
   if (-not $Title) { throw '-Title is required' }
-  $f = if ($Failed) { ' -Failed' } elseif ($Waiting) { ' -Waiting' } else { '' }
+  $f = if ($Failed) { ' -Failed' } elseif ($Waiting) { ' -Waiting' } elseif ($Info) { ' -State info' } elseif ($Warning) { ' -State warning' } else { '' }
   $ack = if ($AcknowledgeLabel) { " -AcknowledgeLabel $(& $dec $AcknowledgeLabel)" } else { '' }
   $dur = if ($Duration) { " -Duration $(& $dec $Duration)" } else { '' }
   $snd = if ($Silent) { ' -Silent' } elseif ($Sound) { " -Sound $(& $dec $Sound)" } else { '' }

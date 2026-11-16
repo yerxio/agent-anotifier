@@ -168,10 +168,9 @@ describe('setup with partial / no tools installed', () => {
 });
 
 describe('Windows card backend', () => {
-  // The cards carry every tool's hook notification, but BurntToast is still the
-  // backend for the statusline's usage-limit and context-window alerts, so
-  // setup readies both and says which does what.
-  it('reports cards for the detected tool and still readies BurntToast for the alerts', (t) => {
+  // The cards carry every desktop notification; BurntToast is only what
+  // `toast.cards: false` falls back to, so setup readies both and says so.
+  it('reports cards for the detected tool and still readies BurntToast as the fallback', (t) => {
     if (process.platform !== 'win32') return t.skip('Windows setup behavior');
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'aan-cards-'));
     fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
@@ -181,7 +180,7 @@ describe('Windows card backend', () => {
       assert.equal(res.status, 0, `setup exited non-zero: ${res.stderr}`);
       assert.match(res.stdout, /Donetoast cards ready for every tool/);
       assert.match(res.stdout, /Codex CLI \(Donetoast cards\)/);
-      assert.match(res.stdout, /BurntToast module ready \(usage-limit and context alerts\)/);
+      assert.match(res.stdout, /BurntToast module ready \(fallback when toast\.cards is off\)/);
       assert.match(readJSON(path.join(home, '.codex', 'hooks.json')).hooks.Stop[0].hooks[0].command, /notify\.mjs/);
     } finally {
       fs.rmSync(home, { recursive: true, force: true });

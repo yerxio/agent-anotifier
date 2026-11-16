@@ -167,7 +167,9 @@ describe('player command building', () => {
 const argValue = (args, flag) => args[args.indexOf(flag) + 1];
 
 describe('windows sendToast with a sound file', () => {
-  const note = (toastSound) => ({ title: 'T', message: 'M', toastSound });
+  // toastCards: false — this is the native BurntToast backend's handling of a
+  // sound file. The card backend's is in platforms-donetoast.test.mjs.
+  const note = (toastSound) => ({ title: 'T', message: 'M', toastSound, toastCards: false });
 
   it('plays the file in a detached pwsh and sends the toast silent with the default sound name', async () => {
     const { spawnImpl, calls } = fakeSpawn();

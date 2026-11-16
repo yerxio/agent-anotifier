@@ -295,7 +295,9 @@ export async function sendUsageNotifications(config, notifications, {
 } = {}) {
   const tasks = [];
   for (const n of notifications) {
-    if (toastOn(config)) tasks.push(resolveBackend().then((send) => send(n)));
+    // toastCards: this path does not go through router.mjs, which is where a
+    // hook notification picks up the user's `toast.cards` choice.
+    if (toastOn(config)) tasks.push(resolveBackend().then((send) => send({ ...n, toastCards: config?.toast?.cards !== false })));
     if (ntfyOn(config)) tasks.push(ntfy(config.ntfy, n));
     if (webhookOn(config)) tasks.push(webhook(config.webhook, n));
   }

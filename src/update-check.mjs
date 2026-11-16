@@ -197,7 +197,8 @@ export function sendUpdateNotification(config, { latest, currentVersion }, {
   const tasks = [];
 
   if (config?.toast?.enabled !== false) {
-    tasks.push(resolveBackend().then((sendToast) => sendToast(withLink)));
+    // toastCards: like the statusline alerts, this notice bypasses router.mjs.
+    tasks.push(resolveBackend().then((sendToast) => sendToast({ ...withLink, toastCards: config?.toast?.cards !== false })));
   }
 
   if (config?.ntfy?.enabled && config?.ntfy?.topic) {
