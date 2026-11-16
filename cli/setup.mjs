@@ -3,7 +3,6 @@ import readline from 'node:readline';
 import os from 'node:os';
 import fs from 'node:fs';
 import path from 'node:path';
-import https from 'node:https';
 import { randomInt } from 'node:crypto';
 import { execSync } from 'node:child_process';
 import { getConfigDir, getConfigPath, loadConfigResult, saveConfig } from '../src/config-loader.mjs';
@@ -82,61 +81,22 @@ function donetoastBundleReady() {
   return ['donetoast.ps1', 'toast.ps1'].every((name) => fs.existsSync(path.join(dir, name)));
 }
 
-export const ICON_URL = 'https://claude.ai/images/claude_app_icon.png';
+// The icons are part of the package (assets/icons/<tool>.png, with claude.png as
+// the fallback every backend lands on), so setup fetches nothing. It used to
+// download the same Claude icon to ~/.anotifier/icon.png: a network round trip
+// for a file already on disk, which failed outright from networks where
+// claude.ai redirects to a region page, and left an empty icon.png behind.
+const BUNDLED_FALLBACK_ICON = path.resolve(__dirname, '..', 'assets', 'icons', 'claude.png');
 
-// True for an icon file that can actually be shown. A zero-byte file is what a
-// failed download used to leave behind, and must count as missing or setup
-// would never try again.
-export function iconUsable(iconPath) {
-  try { return fs.statSync(iconPath).size > 0; } catch { return false; }
-}
-
-// Download the legacy fallback icon. Resolves true only when the complete file
-// is in place; every failure resolves false and leaves NOTHING behind — no
-// file, and above all no open socket.
-//
-// The socket is the part that matters. A request that is neither read to the
-// end nor destroyed keeps its keep-alive connection open, and an open
-// connection keeps the Node process alive: setup printed "Setup complete" and
-// then never exited. Any non-200 reaches that path, and claude.ai answers a
-// 302 to its "unavailable in region" page from some networks, so this is not
-// a rare error. The `timeout` option is no help on its own either: it only
-// emits an event, and nothing aborted the request.
-export function downloadIcon(destPath, { url = ICON_URL, get = https.get, timeoutMs = 10000 } = {}) {
-  return new Promise((resolve) => {
-    const partial = `${destPath}.part`;
-    let settled = false;
-    let req;
-    const finish = (ok) => {
-      if (settled) return;
-      settled = true;
-      if (!ok) {
-        try { req?.destroy(); } catch {}
-        try { fs.rmSync(partial, { force: true }); } catch {}
-      }
-      resolve(ok);
-    };
-    try {
-      req = get(url, { timeout: timeoutMs }, (res) => {
-        // Not followed on purpose: the only redirect seen here leads to an HTML
-        // page, not an image. Drain and drop the connection.
-        if (res.statusCode !== 200) { res.resume(); finish(false); return; }
-        // Written beside the target and renamed at the end, so a download that
-        // dies halfway can never be mistaken for an icon.
-        const file = fs.createWriteStream(partial);
-        file.on('error', () => finish(false));
-        res.on('error', () => finish(false));
-        res.pipe(file);
-        file.on('finish', () => file.close(() => {
-          try { fs.renameSync(partial, destPath); finish(true); } catch { finish(false); }
-        }));
-      });
-      req.on('timeout', () => finish(false));
-      req.on('error', () => finish(false));
-    } catch {
-      finish(false);
-    }
-  });
+// Remove the empty icon.png a failed download left in the config dir. A file
+// with content is left alone: it is either a good earlier download or the
+// user's own.
+export function removeEmptyLegacyIcon(configDir) {
+  const legacy = path.join(configDir, 'icon.png');
+  try {
+    if (fs.statSync(legacy).size === 0) { fs.rmSync(legacy, { force: true }); return true; }
+  } catch {}
+  return false;
 }
 
 // 'ready' | 'missing' | 'unknown'. A timeout (slow pwsh start) is 'unknown':
@@ -297,19 +257,11 @@ export async function run() {
     else { toastReady = false; log('    ✗ notify-send not found — install libnotify for toasts', 'yellow'); }
   }
 
-  // 4. Icon
+  // 4. Icons ship with the package; nothing is downloaded.
   const configDir = getConfigDir();
   fs.mkdirSync(configDir, { recursive: true });
-  const iconPath = path.join(configDir, 'icon.png');
-  let iconReady = true;
-  if (!iconUsable(iconPath)) {
-    // Clears the empty file an earlier failed download left in its place.
-    try { fs.rmSync(iconPath, { force: true }); } catch {}
-    const ok = await downloadIcon(iconPath);
-    iconReady = ok;
-    if (ok) log('    ✓ Notification icon downloaded', 'green');
-    else log('    ✗ Icon download failed (toasts will use default icon)', 'yellow');
-  }
+  removeEmptyLegacyIcon(configDir);
+  const iconReady = fs.existsSync(BUNDLED_FALLBACK_ICON);
 
   // 5. Load config (fail loud on a corrupt file, but offer to rebuild it)
   const { config, problem } = loadConfigResult(getConfigPath());

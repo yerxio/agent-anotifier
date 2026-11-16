@@ -1,6 +1,5 @@
 // src/platforms/linux.mjs
 import { execFile } from 'node:child_process';
-import { getConfigDir } from '../config-loader.mjs';
 import { logHookError } from '../error-log.mjs';
 import { execFailureReason, noteFailure } from '../channel-failure.mjs';
 import { linuxPlayers, playFirst, prepareSoundFile } from './sound.mjs';
@@ -45,11 +44,13 @@ export async function sendToast(notification, deps = {}) {
   if (file) await playFirst(linuxPlayers(file), 'toast:linux', { log, ...soundDeps });
 
   return new Promise((resolve) => {
-    // Per-source icon: assets/icons/<source>.png, fallback to legacy icon.png
+    // Per-source icon: assets/icons/<source>.png, falling back to the bundled
+    // claude.png — the same fallback the Windows toast uses. Both ship with the
+    // package; nothing here depends on a file setup had to download.
     const iconsDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'assets', 'icons');
     let iconPath = notification.source ? path.join(iconsDir, `${notification.source}.png`) : '';
     if (!iconPath || !fs.existsSync(iconPath)) {
-      iconPath = path.join(getConfigDir(), 'icon.png');
+      iconPath = path.join(iconsDir, 'claude.png');
     }
     const args = buildNotifySendArgs(notification, fs.existsSync(iconPath) ? iconPath : '');
 

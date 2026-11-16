@@ -10,9 +10,8 @@ import { STAR_LINE } from '../../src/support.mjs';
 const readJSON = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
 
 function seedSetupResources(home) {
-  // Keep setup e2e hermetic: no public icon download or PowerShell Gallery install.
-  fs.mkdirSync(path.join(home, '.anotifier'), { recursive: true });
-  fs.writeFileSync(path.join(home, '.anotifier', 'icon.png'), 'fixture icon');
+  // Keep setup e2e hermetic: no PowerShell Gallery install. (Icons ship with
+  // the package, so there is no download to stub out any more.)
   const modulePath = path.join(home, 'ps-modules');
   const burntToastDir = path.join(modulePath, 'BurntToast');
   fs.mkdirSync(burntToastDir, { recursive: true });
