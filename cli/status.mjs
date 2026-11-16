@@ -111,16 +111,12 @@ export async function run() {
   const toastLabel = platform === 'win32' ? windowsToastLabel(config) : PLATFORM_DISPLAY[platform].toast;
   const toastOff = toastOffNoBackendLabel(config, platform);
 
-  // With cards on, the row names two backends and has no space left for the
-  // click-to-focus note — which is only true of the native toasts anyway: a
-  // card is dismissed by its own button. The note goes on a continuation line,
-  // the way the ntfy URL does below.
+  // With cards on there is no click-to-focus to report: a card is dismiss-only,
+  // and the native toasts that remain (the statusline alerts) always send
+  // clickToFocus: false. The note only describes the all-native setup.
   const focusOn = !toastOff && config.toast?.clickToFocus;
   const toastExtra = focusOn && !cards ? c.muted(' (click-to-focus)') : '';
   const toastValue = toastOff ? c.warn(`toast: ${toastOff}`) : `${toastLabel}${toastExtra}`;
-  const toastFocusNote = focusOn && cards
-    ? `${''.padEnd(15)} ${c.muted('click-to-focus on native toasts')}`
-    : null;
 
   const ntfyValue = config.ntfy?.enabled && config.ntfy?.topic
     ? c.success(`${config.ntfy.server}/${config.ntfy.topic}`)
@@ -173,7 +169,6 @@ export async function run() {
     '',
     kv('Platform', platLabel),
     kv('Toast', toastValue),
-    ...(toastFocusNote ? [toastFocusNote] : []),
     kv('Sentry', sentryValue),
     kv('Snooze', snoozeValue),
     kv('Quiet hours', quietValue),
