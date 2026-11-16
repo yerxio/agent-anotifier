@@ -184,6 +184,10 @@ export function route(event, config) {
     ntfyTags,
     icon: sourceConfig.icon || '',
     clickToFocus: config.toast?.clickToFocus !== false,
+    // Windows only, read by the card backend (src/platforms/windows.mjs). Here
+    // rather than in the sender because notify.mjs resolves the config once per
+    // run — a channel must never re-read it.
+    toastCards: config.toast?.cards !== false,
     event: event.event,
     source: event.source,
     projectName: event.projectName,

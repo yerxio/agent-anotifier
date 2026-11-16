@@ -14,6 +14,32 @@ const DONETOAST_DIR = path.join(__dirname, '..', '..', 'assets', 'windows', 'don
 const DONETOAST_SCRIPT = path.join(DONETOAST_DIR, 'donetoast.ps1');
 const DONETOAST_CARD_SCRIPT = path.join(DONETOAST_DIR, 'toast.ps1');
 
+// The hook notifications the card backend renders — every tool's, not just
+// Codex's. The statusline's usage-limit and context-window alerts are
+// deliberately absent: their text is a two-sentence warning that the card's
+// single ellipsized line would cut in half, so they stay on the native toast,
+// which wraps and keeps click-to-focus.
+const CARD_EVENTS = new Set(['task_complete', 'needs_input', 'session_start']);
+
+// donetoast reads -App for BOTH the card header and icons/<app>.png, so this is
+// the capitalized source token, never the config's display label ('Claude Code'
+// would look for "claude code.png"). No source — the `anotifier test` payload —
+// reads as the product and falls back to the bundle's own icon.png.
+export function cardAppName(source) {
+  if (typeof source !== 'string' || !source) return 'anotifier';
+  return source.charAt(0).toUpperCase() + source.slice(1);
+}
+
+// Cards are the Windows default for hook notifications; `toast.cards: false` in
+// the config puts every tool back on the native toast, and a bundle that did
+// not ship (or was deleted) falls back on its own.
+export function wantsCard(notification) {
+  return notification.toastCards !== false
+    && CARD_EVENTS.has(notification.event)
+    && fs.existsSync(DONETOAST_SCRIPT)
+    && fs.existsSync(DONETOAST_CARD_SCRIPT);
+}
+
 // 7s: the host hook budget is 10s total (hooks.json), shared with stdin read
 // and the other channels — the toast subprocess must never be the thing that
 // blows that budget.
@@ -46,9 +72,9 @@ export function toastFailureDetail(err, stderr, elapsedMs, timeoutMs = TOAST_TIM
 function sendDonetoast(notification, { execFileImpl, log }) {
   const args = [
     '-NoProfile', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass', '-File', DONETOAST_SCRIPT,
-    '-Title', notification.title || 'Codex',
+    '-Title', notification.title || cardAppName(notification.source),
     '-Message', notification.message || '',
-    '-App', 'Codex',
+    '-App', cardAppName(notification.source),
     '-AcknowledgeLabel', '知道了',
   ];
   if (notification.event === 'needs_input') args.push('-Waiting');
@@ -76,9 +102,10 @@ export async function sendToast(notification, deps = {}) {
     return false;
   }
 
-  // Windows Codex uses donetoast's persistent card, with an explicit
-  // acknowledgement button. Other tools keep the existing native-toast path.
-  if (notification.source === 'codex' && fs.existsSync(DONETOAST_SCRIPT) && fs.existsSync(DONETOAST_CARD_SCRIPT)) {
+  // Hook notifications render as donetoast's persistent card, with an explicit
+  // acknowledgement button. Everything else — the statusline alerts, and every
+  // tool when `toast.cards` is off — keeps the native-toast path below.
+  if (wantsCard(notification)) {
     return sendDonetoast(notification, { execFileImpl, log });
   }
 

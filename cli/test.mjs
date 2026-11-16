@@ -41,6 +41,10 @@ export async function run(channel) {
     priority: 'default',
     ntfyTags: 'test_tube',
     projectName: 'test',
+    // Named so the test lands on the same backend a real completion does (the
+    // Windows card, unless `toast.cards` is off) rather than silently
+    // exercising a path the hooks no longer take.
+    event: 'task_complete',
   };
 
   console.log();

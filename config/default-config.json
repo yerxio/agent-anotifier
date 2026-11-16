@@ -8,6 +8,7 @@
   },
   "toast": {
     "enabled": true,
+    "cards": true,
     "clickToFocus": true,
     "richContent": true
   },

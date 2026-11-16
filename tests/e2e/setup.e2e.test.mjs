@@ -53,8 +53,12 @@ describe('real setup subprocess wires every detected tool', () => {
     assert.ok(codex.hooks.SessionStart?.length, 'codex SessionStart hook');
     assert.match(codex.hooks.Stop[0].hooks[0].command, /notify\.mjs/, 'Codex retains anotifier routing so phone/webhook channels remain available');
     if (process.platform === 'win32') {
-      assert.match(res.stdout, /Donetoast card backend ready for Codex/);
+      assert.match(res.stdout, /Donetoast cards ready for every tool/);
+      // The card backend is no longer Codex-only: every patched Windows tool
+      // says so on its own line.
+      assert.match(res.stdout, /Claude Code \(Donetoast cards\)/);
       assert.match(res.stdout, /Codex CLI \(Donetoast cards\)/);
+      assert.match(res.stdout, /Gemini CLI \(Donetoast cards\)/);
     }
     const toml = fs.readFileSync(path.join(home, '.codex', 'config.toml'), 'utf8');
     assert.match(toml, /hooks = true/);
@@ -163,18 +167,21 @@ describe('setup with partial / no tools installed', () => {
   });
 });
 
-describe('Windows Codex-only setup', () => {
-  it('uses bundled Donetoast without requiring PowerShell 7 or BurntToast', (t) => {
+describe('Windows card backend', () => {
+  // The cards carry every tool's hook notification, but BurntToast is still the
+  // backend for the statusline's usage-limit and context-window alerts, so
+  // setup readies both and says which does what.
+  it('reports cards for the detected tool and still readies BurntToast for the alerts', (t) => {
     if (process.platform !== 'win32') return t.skip('Windows setup behavior');
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'aan-codex-only-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'aan-cards-'));
     fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
     const setupEnv = seedSetupResources(home);
     try {
       const res = runNode(['cli/index.mjs', 'setup'], { home, stdin: 'n\n', extraEnv: setupEnv });
       assert.equal(res.status, 0, `setup exited non-zero: ${res.stderr}`);
-      assert.match(res.stdout, /Donetoast card backend ready for Codex/);
-      assert.match(res.stdout, /Donetoast is self-contained for Codex/);
-      assert.doesNotMatch(res.stdout, /BurntToast module ready/);
+      assert.match(res.stdout, /Donetoast cards ready for every tool/);
+      assert.match(res.stdout, /Codex CLI \(Donetoast cards\)/);
+      assert.match(res.stdout, /BurntToast module ready \(usage-limit and context alerts\)/);
       assert.match(readJSON(path.join(home, '.codex', 'hooks.json')).hooks.Stop[0].hooks[0].command, /notify\.mjs/);
     } finally {
       fs.rmSync(home, { recursive: true, force: true });

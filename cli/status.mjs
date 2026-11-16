@@ -24,7 +24,7 @@ const pkg = require('../package.json');
 // Keyed by toastPlatform(): WSL sends a Windows toast through interop, so it
 // must not be reported as notify-send.
 export const PLATFORM_DISPLAY = {
-  win32: { platform: 'Windows', toast: 'Donetoast (Codex) + BurntToast' },
+  win32: { platform: 'Windows', toast: 'BurntToast' },
   darwin: { platform: 'macOS', toast: 'osascript' },
   wsl: { platform: 'WSL', toast: 'Windows toast (WSL interop)' },
   linux: { platform: 'Linux', toast: 'notify-send' },
@@ -88,6 +88,15 @@ export function focusValue(config) {
   return config.suppressWhenFocused === true ? c.white('skip alerts while the agent window is in front') : c.muted('off');
 }
 
+// On Windows the hook notifications are Donetoast cards and the statusline's
+// usage/context alerts stay on BurntToast, so the row names both. `toast.cards:
+// false` puts everything back on BurntToast and the row says just that.
+export function windowsToastLabel(config) {
+  return config?.toast?.cards === false
+    ? PLATFORM_DISPLAY.win32.toast
+    : 'Donetoast cards + BurntToast alerts';
+}
+
 export async function run() {
   const { config, problem } = loadConfigResult();
   if (problem) {
@@ -96,19 +105,21 @@ export async function run() {
     return;
   }
 
-  const { platform: platLabel, toast: toastLabel } = PLATFORM_DISPLAY[toastPlatform()];
-  const toastOff = toastOffNoBackendLabel(config, toastPlatform());
+  const platform = toastPlatform();
+  const { platform: platLabel } = PLATFORM_DISPLAY[platform];
+  const cards = platform === 'win32' && config.toast?.cards !== false;
+  const toastLabel = platform === 'win32' ? windowsToastLabel(config) : PLATFORM_DISPLAY[platform].toast;
+  const toastOff = toastOffNoBackendLabel(config, platform);
 
-  // Windows names two backends, so the row has no space left for the
-  // click-to-focus note — and the note is only true of the native toasts
-  // anyway: the Codex card is dismissed by its own button. It goes on a
-  // continuation line, the way the ntfy URL does below.
+  // With cards on, the row names two backends and has no space left for the
+  // click-to-focus note — which is only true of the native toasts anyway: a
+  // card is dismissed by its own button. The note goes on a continuation line,
+  // the way the ntfy URL does below.
   const focusOn = !toastOff && config.toast?.clickToFocus;
-  const twoBackends = toastPlatform() === 'win32';
-  const toastExtra = focusOn && !twoBackends ? c.muted(' (click-to-focus)') : '';
+  const toastExtra = focusOn && !cards ? c.muted(' (click-to-focus)') : '';
   const toastValue = toastOff ? c.warn(`toast: ${toastOff}`) : `${toastLabel}${toastExtra}`;
-  const toastFocusNote = focusOn && twoBackends
-    ? `${''.padEnd(15)} ${c.muted('click-to-focus on BurntToast')}`
+  const toastFocusNote = focusOn && cards
+    ? `${''.padEnd(15)} ${c.muted('click-to-focus on native toasts')}`
     : null;
 
   const ntfyValue = config.ntfy?.enabled && config.ntfy?.topic
