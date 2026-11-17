@@ -44,6 +44,7 @@ export async function run(channel) {
     // Windows card, unless `toast.cards` is off) rather than silently
     // exercising a path the hooks no longer take.
     event: 'task_complete',
+    hook: 'test',
   };
 
   console.log();

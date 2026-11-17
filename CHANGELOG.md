@@ -15,7 +15,8 @@ not published to npm; `package.json` is marked `private`.
 
 #### Changed
 
-- **Windows desktop notifications are Donetoast cards.** Every desktop notification on Windows — each tool's "task complete" and "needs input", the usage-limit and context-window warnings, the update notice — is a persistent card with a `知道了` button instead of a native toast. One size (480×160), five states (`done`, `needs you`, `failed`, `info`, `warning`), the tool's own icon, the turn length in the header and a message that wraps to five lines. The card scripts are vendored from [donetoast](https://github.com/siiplasplas/donetoast) under `assets/windows/donetoast/`. New `toast.cards` (default `true`); `false` restores the native BurntToast path.
+- **Windows desktop notifications are Donetoast cards.** Every desktop notification on Windows — each tool's "task complete" and "needs input", the usage-limit and context-window warnings, the update notice — is a persistent card with a `知道了` button instead of a native toast. One size (480×160), five colour-coded kinds (finished, waiting on you, failed, informational, warning), the tool's own icon, the turn length in the header and a message that wraps to five lines. The card scripts are vendored from [donetoast](https://github.com/siiplasplas/donetoast) under `assets/windows/donetoast/`. New `toast.cards` (default `true`); `false` restores the native BurntToast path.
+- **A card names the hook that raised it.** The header shows the hook as the tool calls it (`Stop`, `PermissionRequest`, `AfterAgent`), and for a Claude Code `Notification` its type too (`Notification · permission_prompt`), in place of a word for the card's state. Notifications no hook raised show their origin (`statusline`, `update check`, `test`). Colour and glyph still follow the state.
 - **A card shows on every virtual desktop.** It used to stay on the desktop that was active when it opened. It is now a tool window, which Windows shows on all desktops; being one window, dismissing it on any desktop dismisses it everywhere.
 - **A card plays the sound configured for the event.** `events.<event>.toastSound` names resolve through the user's Windows sound scheme; a `.wav` plays directly, other audio through `play-sound.ps1`. It plays once, the looping names included, and an unknown name falls back to the card's own chime.
 - **No click-to-focus on Windows with cards on.** A card can only be dismissed. `toast.clickToFocus` still applies to native toasts.
@@ -28,7 +29,7 @@ not published to npm; `package.json` is marked `private`.
 
 - **`setup` hung after printing "Setup complete".** A failed icon download left its connection open, which kept the process alive; it also left an empty `icon.png` that stopped later runs from retrying. (The download itself is now gone.)
 - **The Windows terminal bell never rang.** `bell.ps1` passed `0xC0000000`, which PowerShell reads as a negative Int32, to a `UInt32` parameter and threw on every run; its fallback assigned to the read-only `$pid`; and it was spawned through `pwsh`, which is not on every machine. It now runs on the built-in Windows PowerShell. Affected Codex, Gemini and Cursor; Claude Code rings through its own terminal sequence.
-- **A Claude Code notice with nothing waiting on it read "needs you".** A background agent finishing or the usage limit lifting now shows as an `info` card.
+- **A Claude Code notice with nothing waiting on it was shown as a request for input.** A background agent finishing or the usage limit lifting now shows as a blue informational card, not an amber one.
 - The card no longer appends the text of every notification to a `toast.log` in its own directory.
 
 #### Removed

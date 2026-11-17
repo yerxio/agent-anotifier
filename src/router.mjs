@@ -193,6 +193,12 @@ export function route(event, config) {
     // that shows a state — the Windows card — needs this to not say "needs you".
     ...(info ? { informational: true } : {}),
     event: event.event,
+    // The hook that fired, by the name the tool gave it, and for a Claude Code
+    // Notification the type inside it. `event` above is anotifier's own
+    // normalized name (task_complete, needs_input); these two are the originals,
+    // for a backend that can show where a notification came from.
+    hook: event.rawEvent || '',
+    ...(typeof event.notificationType === 'string' && event.notificationType ? { hookDetail: event.notificationType } : {}),
     source: event.source,
     projectName: event.projectName,
     cwd: event.cwd,

@@ -41,6 +41,23 @@ not derived from the content or from `-AcknowledgeLabel`: one geometry keeps the
 stack gap-free and leaves a single layout to maintain. The progress bar follows
 `$cardWidth` instead of a hard-coded 283.
 
+### The hook's name in the header
+
+`-Label <text>` on both scripts. Upstream's header ends in a word for the card's
+state (`done`, `needs you`, `failed`); with a label it shows the label instead,
+and anotifier passes the name of the hook that raised the card, as the tool
+itself calls it: `Claude · Stop`, `Codex · PermissionRequest`,
+`Gemini · AfterAgent`. A Claude Code `Notification` also shows its type
+(`Notification · permission_prompt`), because that one hook carries thirteen
+different things. A notification no hook raised names its origin: `statusline`
+for the usage and context warnings, `update check`, `test`.
+
+The state still chooses the colour, the glyph and the bundled chime; only its
+word is replaced. Without a label, and on a live progress card (whose state
+changes while it is on screen), the state word is shown as upstream does.
+`cardLabel()` in `src/platforms/windows.mjs` builds the label and strips it to
+identifier characters, since both parts come from a hook payload.
+
 ### Turn length in the header
 
 `-Duration <text>` on both scripts. The card header reads

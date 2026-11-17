@@ -19,6 +19,7 @@ param(
   [string]$App = 'Claude',
   [string]$AcknowledgeLabel = '',
   [string]$Duration = '',
+  [string]$Label = '',
   [string]$Sound = '',
   [switch]$Silent,
   [string]$Icon = '',
@@ -253,9 +254,15 @@ function ShowState([bool]$animate) {
   $c = $script:cur; $l = $looks[$c.state]; if (-not $l) { $l = $looks.done }
   $brush = New-Object Windows.Media.SolidColorBrush ([Windows.Media.ColorConverter]::ConvertFromString($l[0])); $brush.Freeze()
   $el.Glyph.Text = [string][char]$l[1]; $el.Glyph.Foreground = $brush; $el.Bar.Background = $brush
-  # anotifier: the turn length rides in the header, where it is always visible.
-  # At the end of the message it was the first thing a long text pushed off the card.
-  $el.Header.Text = " $script:App  ·  $($l[2])" + $(if ($Duration -and $c.state -ne 'running') { "  ·  $Duration" } else { '' })
+  # anotifier: the header names what raised the card — the hook itself ("Stop",
+  # "Notification · permission_prompt") — when the caller passes -Label. The
+  # state still picks the colour and the glyph; its word ("done", "needs you")
+  # is only the fallback, for a card nobody labelled and for a live progress
+  # card, whose state changes while it is on screen.
+  $word = if ($Label -and -not $Id) { $Label } else { $l[2] }
+  # The turn length rides in the header, where it is always visible. At the end
+  # of the message it was the first thing a long text pushed off the card.
+  $el.Header.Text = " $script:App  ·  $word" + $(if ($Duration -and $c.state -ne 'running') { "  ·  $Duration" } else { '' })
   $el.TitleText.Text = $c.title
   $el.MessageText.Text = if ($c.state -eq 'running' -and $Id) { RunText } else { $c.message }
   if ($c.percent -ge 0 -or ($c.state -eq 'running' -and $Id)) {

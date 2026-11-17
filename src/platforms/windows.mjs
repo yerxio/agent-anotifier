@@ -106,7 +106,26 @@ export function cardContent(notification) {
   const suffix = ` (took ${duration})`;
   if (duration && message.endsWith(suffix)) message = message.slice(0, -suffix.length);
   const hookTitle = HOOK_EVENTS.has(notification.event) ? project : '';
-  return { app, title: hookTitle || notification.title || app, message, duration };
+  return { app, title: hookTitle || notification.title || app, message, duration, label: cardLabel(notification) };
+}
+
+// What raised the card, for its header: the hook's own name as the tool sent
+// it ("Stop", "AfterAgent", "PermissionRequest"), and for a Claude Code
+// Notification the type inside it ("Notification · permission_prompt"), since
+// that one hook carries thirteen different things. A notification no hook
+// raised names its origin instead ("statusline", "update check", "test").
+// Empty when the sender gave neither, and the card then falls back to its
+// state word.
+//
+// Both parts come from outside — a hook payload — so only plain identifier
+// characters survive and the length is capped: this is a header, not a place
+// for a payload to put text.
+export function cardLabel(notification) {
+  const clean = (value) => (typeof value === 'string' ? value.replace(/[^A-Za-z0-9 _.-]/g, '').trim().slice(0, 32) : '');
+  const hook = clean(notification.hook);
+  const detail = clean(notification.hookDetail);
+  if (!hook) return '';
+  return detail ? `${hook} · ${detail}` : hook;
 }
 
 // How the card should sound, from the same `toastSound` the native toast reads
@@ -141,6 +160,7 @@ async function sendDonetoast(notification, { execFileImpl, log, ...soundDeps }) 
     '-AcknowledgeLabel', '知道了',
   ];
   if (card.duration) args.push('-Duration', card.duration);
+  if (card.label) args.push('-Label', card.label);
   const stateFlag = STATE_FLAG[cardState(notification)];
   if (stateFlag) args.push(stateFlag);
   args.push(...await cardSoundArgs(notification, { log, ...soundDeps }));

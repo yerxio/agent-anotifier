@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sendToast, wantsCard, cardAppName, cardContent, cardSoundArgs, cardState } from '../src/platforms/windows.mjs';
+import { sendToast, wantsCard, cardAppName, cardContent, cardLabel, cardSoundArgs, cardState } from '../src/platforms/windows.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const donetoastDir = path.join(root, 'assets', 'windows', 'donetoast');
@@ -182,7 +182,7 @@ test('the card title is the project alone and the turn length moves to the heade
 test('cardContent leaves a notification without project or duration as it is', () => {
   assert.deepEqual(
     cardContent({ title: 'anotifier', message: 'Test notification', event: 'task_complete' }),
-    { app: 'anotifier', title: 'anotifier', message: 'Test notification', duration: '' },
+    { app: 'anotifier', title: 'anotifier', message: 'Test notification', duration: '', label: '' },
   );
   // A message that merely mentions a duration elsewhere is not rewritten.
   assert.equal(
@@ -296,4 +296,63 @@ test('the card is a tool window, so Windows shows it on every virtual desktop', 
   const shown = toast.indexOf('$w.Show()');
   assert.ok(styled > -1 && shown > styled, 'the style must be set before the window is shown');
   assert.match(toast.slice(styled, shown), /\[AANCardStyle\]::OnAllDesktops\(/);
+});
+
+test('the card header names the hook that raised it, not a state word', async () => {
+  const { route } = await import('../src/router.mjs');
+  const { parseInput } = await import('../src/parse-input.mjs');
+  const config = { toast: {}, events: { needs_input: {}, task_complete: {} }, sources: {} };
+  // From the payload each tool really sends, through parse-input and the router.
+  const label = (raw, source, eventArg) => cardLabel(route(parseInput(raw, source, eventArg), config));
+
+  assert.equal(label({ hook_event_name: 'Stop' }, 'claude'), 'Stop');
+  // One Claude Code hook carries thirteen different things, so its type shows too.
+  assert.equal(label({ hook_event_name: 'Notification', notification_type: 'permission_prompt' }, 'claude'), 'Notification · permission_prompt');
+  assert.equal(label({ hook_event_name: 'Notification', notification_type: 'agent_completed' }, 'claude'), 'Notification · agent_completed');
+  assert.equal(label({ hook_event_name: 'Notification' }, 'claude'), 'Notification');
+  // Each tool keeps its own name for the hook, casing included.
+  assert.equal(label({}, 'codex', 'PermissionRequest'), 'PermissionRequest');
+  assert.equal(label({ hook_event_name: 'AfterAgent' }, 'gemini'), 'AfterAgent');
+  assert.equal(label({}, 'cursor', 'stop'), 'stop');
+  // Gemini's Notification has a field of the same name with its own vocabulary;
+  // parse-input does not read it, so it is not shown as if it were Claude's.
+  assert.equal(label({ hook_event_name: 'Notification', notification_type: 'ToolPermission' }, 'gemini'), 'Notification');
+});
+
+test('a notification no hook raised names where it came from', async () => {
+  const { buildUsageNotification } = await import('../src/usage-alert.mjs');
+  const usage = buildUsageNotification({ window: 'five_hour', used: 86, threshold: 85, resetsAt: 0 }, {});
+  assert.equal(cardLabel(usage), 'statusline');
+  assert.equal(cardLabel({ hook: 'update check' }), 'update check');
+  assert.equal(cardLabel({ hook: 'test' }), 'test');
+  // Nothing given: no label, and the card falls back to its state word.
+  assert.equal(cardLabel({}), '');
+  assert.equal(cardLabel({ hookDetail: 'orphan' }), '');
+});
+
+test('cardLabel lets nothing but identifier characters into the header', () => {
+  // Both parts come from a hook payload.
+  assert.equal(cardLabel({ hook: 'Stop"; rm -rf ~ #' }), 'Stop rm -rf');
+  assert.equal(cardLabel({ hook: 'Stop\n\u001b[31mINJECTED' }), 'Stop31mINJECTED');
+  assert.equal(cardLabel({ hook: 'x'.repeat(200) }).length, 32);
+  assert.equal(cardLabel({ hook: 42, hookDetail: {} }), '');
+  assert.equal(cardLabel({ hook: 'Notification', hookDetail: '<script>' }), 'Notification · script');
+});
+
+test('the label reaches the card and replaces the state word in its header', async () => {
+  const { seen, deps } = capture();
+  await sendToast({ title: 'p', message: 'Task complete', source: 'claude', event: 'task_complete', hook: 'Stop' }, deps);
+  assert.equal(argOf(seen.args, '-Label'), 'Stop');
+
+  const unlabelled = capture();
+  await sendToast({ title: 'p', message: 'Task complete', source: 'claude', event: 'task_complete' }, unlabelled.deps);
+  assert.ok(!unlabelled.seen.args.includes('-Label'));
+
+  const toast = fs.readFileSync(path.join(donetoastDir, 'toast.ps1'), 'utf8');
+  const launcher = fs.readFileSync(path.join(donetoastDir, 'donetoast.ps1'), 'utf8');
+  assert.match(launcher, /-Label \$\(& \$dec \$Label\)/);
+  assert.match(toast, /\[string\]\$Label = ''/);
+  // The label, or the state word when there is none. A live progress card keeps
+  // the state word: its state changes while it is on screen.
+  assert.match(toast, /\$word = if \(\$Label -and -not \$Id\) \{ \$Label \} else \{ \$l\[2\] \}/);
 });

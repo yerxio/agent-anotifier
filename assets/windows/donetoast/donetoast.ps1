@@ -14,7 +14,9 @@
 #   -AcknowledgeLabel '知道了' -> add a named button that dismisses the card.
 #   -Info / -Warning (anotifier) -> blue "info" card / amber "warning" card, for notices that are
 #     neither a finished task nor a request for input.
-#   -Duration '4m 12s' (anotifier) -> shown in the card header after the state word.
+#   -Label 'Stop' (anotifier) -> shown in the card header in place of the state word
+#     ("done", "needs you"): the name of the hook that raised the card.
+#   -Duration '4m 12s' (anotifier) -> shown in the card header after that.
 #   -Sound IM | Reminder | C:\path\done.wav (anotifier) -> play that instead of the card's own chime;
 #     -Silent -> play nothing (the caller is playing its own audio).
 # When called from a sandboxed agent, run it with the sandbox off, or the card can't reach your desktop.
@@ -31,6 +33,7 @@ param(
   [string]$App = 'Claude',
   [string]$AcknowledgeLabel = '',
   [string]$Duration = '',
+  [string]$Label = '',
   [string]$Sound = '',
   [switch]$Silent,
   [switch]$Info,
@@ -68,7 +71,8 @@ if (-not $Id) {
   $ack = if ($AcknowledgeLabel) { " -AcknowledgeLabel $(& $dec $AcknowledgeLabel)" } else { '' }
   $dur = if ($Duration) { " -Duration $(& $dec $Duration)" } else { '' }
   $snd = if ($Silent) { ' -Silent' } elseif ($Sound) { " -Sound $(& $dec $Sound)" } else { '' }
-  return "started pid=$(Launch "& '$root\toast.ps1' -Title $(& $dec $Title) -Message $(& $dec "$Message") -App $(& $dec $App)$f$ack$dur$snd")"
+  $lbl = if ($Label) { " -Label $(& $dec $Label)" } else { '' }
+  return "started pid=$(Launch "& '$root\toast.ps1' -Title $(& $dec $Title) -Message $(& $dec "$Message") -App $(& $dec $App)$f$ack$dur$snd$lbl")"
 }
 
 # Live card: write the state file; open a card only if none is showing for this id yet

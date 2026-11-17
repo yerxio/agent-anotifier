@@ -196,6 +196,7 @@ export function buildContextNotification(alert, payload) {
     source: 'claude',
     projectName: chat,
     event: 'context_limit',
+    hook: 'statusline', // not a hook: the statusline tap, as for the usage warning
   };
 }
 

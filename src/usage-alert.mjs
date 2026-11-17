@@ -159,6 +159,8 @@ export function buildUsageNotification(alert, payload, now = Date.now()) {
     source: 'claude',
     projectName: chat,
     event: 'usage_limit',
+    // Not raised by a hook: the statusline tap saw the usage cross a threshold.
+    hook: 'statusline',
   };
 }
 

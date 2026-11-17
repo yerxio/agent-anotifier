@@ -209,6 +209,7 @@ export function sendUpdateNotification(config, { latest, currentVersion }, {
     icon: '',
     clickToFocus: false, // there is no project window this could focus
     event: 'update_available',
+    hook: 'update check', // not a hook either
   };
   // Toast backends render title + body and nothing else — none of the three can
   // carry a link — so the release page goes in the body, where it is at least
