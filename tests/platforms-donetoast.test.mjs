@@ -5,6 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sendToast, wantsCard, cardAppName, cardContent, cardSoundArgs, cardState } from '../src/platforms/windows.mjs';
@@ -217,11 +218,14 @@ test('a configured sound name reaches the card, which resolves it itself', async
 });
 
 test('cardSoundArgs: a wav goes to the card, other audio plays here and silences it', async () => {
+  // Absolute on whatever platform runs the suite: a literal C:\\... path is a relative
+  // name on Linux and macOS, where it would be resolved against the config dir.
+  const [WAV, MP3, GONE] = ['done.wav', 'done.mp3', 'gone.wav'].map((f) => path.join(os.tmpdir(), 'aan-sounds', f));
   const usable = { statSync: () => ({ isFile: () => true }), accessSync: () => {} };
   const log = () => {};
 
-  const wav = await cardSoundArgs({ toastSound: 'C:\\sounds\\done.wav' }, { log, ...usable });
-  assert.deepEqual(wav, ['-Sound', 'C:\\sounds\\done.wav']);
+  const wav = await cardSoundArgs({ toastSound: WAV }, { log, ...usable });
+  assert.deepEqual(wav, ['-Sound', WAV]);
 
   // An mp3 cannot be played by the card's SoundPlayer, so the same player the
   // native backend uses takes it, and the card is told to stay quiet.
@@ -230,19 +234,19 @@ test('cardSoundArgs: a wav goes to the card, other audio plays here and silences
     spawned.push([command, args]);
     return { once: (event, cb) => { if (event === 'spawn') cb(); }, unref: () => {} };
   };
-  const mp3 = await cardSoundArgs({ toastSound: 'C:\\sounds\\done.mp3' }, { log, spawnImpl, ...usable });
+  const mp3 = await cardSoundArgs({ toastSound: MP3 }, { log, spawnImpl, ...usable });
   assert.deepEqual(mp3, ['-Silent']);
   assert.equal(spawned[0][0], 'pwsh');
-  assert.ok(spawned[0][1].includes('C:\\sounds\\done.mp3'));
+  assert.ok(spawned[0][1].includes(MP3));
 
   // No player could start: no flag, so the card falls back to its own chime
   // rather than going silent.
   const failing = (command, args) => ({ once: (event, cb) => { if (event === 'error') cb(new Error('ENOENT')); }, unref: () => {} });
-  assert.deepEqual(await cardSoundArgs({ toastSound: 'C:\\sounds\\done.mp3' }, { log, spawnImpl: failing, ...usable }), []);
+  assert.deepEqual(await cardSoundArgs({ toastSound: MP3 }, { log, spawnImpl: failing, ...usable }), []);
 
   // A file that is not there: logged by prepareSoundFile, and again no flag.
   const missing = { statSync: () => { throw Object.assign(new Error('nope'), { code: 'ENOENT' }); }, accessSync: () => {} };
-  assert.deepEqual(await cardSoundArgs({ toastSound: 'C:\\sounds\\gone.wav' }, { log, ...missing }), []);
+  assert.deepEqual(await cardSoundArgs({ toastSound: GONE }, { log, ...missing }), []);
 });
 
 test('the card plays the configured sound once and falls back to its own chime', () => {
