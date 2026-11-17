@@ -550,7 +550,7 @@ npm run toast:demo  # fire real desktop notifications, every event
 
 The Windows card is drawn by its own WPF window, not by the Windows notification platform, so no automated check reads it back from a system store. What the tests cover is the command anotifier spawns and the card scripts' behaviour; whether a card appeared on screen is checked by eye with `npm run toast:demo` or `anotifier test toast`.
 
-The GitHub workflows in `.github/workflows/` come from upstream. Several need upstream's secrets or its hosted agents and do not pass in this fork; `Unit` and `E2E` are the ones that describe this repository.
+There is no CI in this fork: run the suites above locally. (Upstream's GitHub workflows, which needed its secrets and hosted agents, were removed.)
 
 ## Upstream
 
