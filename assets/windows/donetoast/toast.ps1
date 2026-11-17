@@ -175,6 +175,40 @@ if (-not $Icon) { $Icon = "$PSScriptRoot\icons\$($App.ToLowerInvariant()).png"; 
 $w = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xaml))
 $el = @{}; foreach ($n in 'Card', 'Slide', 'Glow', 'Glyph', 'Header', 'Clock', 'TitleText', 'MessageText', 'Avatar', 'Track', 'Bar', 'Acknowledge') { $el[$n] = $w.FindName($n) }
 
+# anotifier: show the card on EVERY virtual desktop.
+# Windows assigns an ordinary top-level window to the desktop it opened on, so a
+# card raised while the user was on desktop 2 was simply absent from desktop 1.
+# A tool window (WS_EX_TOOLWINDOW) is not managed by virtual desktops at all,
+# and Windows shows it on all of them. It is one window, not a copy per desktop,
+# so dismissing it anywhere — the acknowledgement button, a click, the timeout —
+# removes it everywhere.
+# Set as soon as the window has a handle and before it is shown, so it never
+# appears on a single desktop first. A failure leaves an ordinary card.
+$w.add_SourceInitialized({
+  try {
+    if (-not ([System.Management.Automation.PSTypeName]'AANCardStyle').Type) {
+      Add-Type -ErrorAction Stop -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class AANCardStyle {
+  [DllImport("user32.dll")] static extern int GetWindowLong(IntPtr h, int index);
+  [DllImport("user32.dll")] static extern int SetWindowLong(IntPtr h, int index, int value);
+  const int GWL_EXSTYLE = -20;
+  const int WS_EX_TOOLWINDOW = 0x00000080;
+  const int WS_EX_APPWINDOW = 0x00040000;
+  public static void OnAllDesktops(IntPtr h) {
+    int ex = GetWindowLong(h, GWL_EXSTYLE);
+    // APPWINDOW would force a taskbar button and put the window back under
+    // virtual-desktop management, cancelling TOOLWINDOW.
+    SetWindowLong(h, GWL_EXSTYLE, (ex | WS_EX_TOOLWINDOW) & ~WS_EX_APPWINDOW);
+  }
+}
+'@
+    }
+    [AANCardStyle]::OnAllDesktops((New-Object Windows.Interop.WindowInteropHelper $w).Handle)
+  } catch {}
+})
+
 # Load the icon fully into memory (no file lock, ready immediately in preview mode too)
 $bi = New-Object Windows.Media.Imaging.BitmapImage
 $bi.BeginInit(); $bi.CacheOption = 'OnLoad'; $bi.DecodePixelWidth = 112; $bi.UriSource = [Uri]$Icon; $bi.EndInit(); $bi.Freeze()

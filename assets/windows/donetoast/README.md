@@ -60,6 +60,15 @@ background agent that had simply finished. `toast.ps1` gains `info` (blue) and
 `donetoast.ps1` gains `-Info` and `-Warning`. `cardState()` in
 `src/platforms/windows.mjs` decides which one a notification is.
 
+### On every virtual desktop
+
+`toast.ps1` sets `WS_EX_TOOLWINDOW` on the card's window as soon as it has a
+handle and before it is shown. Windows assigns an ordinary top-level window to
+the virtual desktop it opened on, so upstream's card was simply absent from the
+other desktops; a tool window is not managed by virtual desktops and is shown on
+all of them. It is one window rather than a copy per desktop, so dismissing it
+on any desktop removes it from every one.
+
 ### The user's own sound
 
 `-Sound <name or .wav path>` and `-Silent` on both scripts, fed from the same

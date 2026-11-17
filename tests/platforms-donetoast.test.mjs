@@ -282,3 +282,18 @@ test('the card writes no log of what it showed', () => {
   assert.doesNotMatch(toast, /Add-Content[^\n]*toast\.log/);
   assert.equal(fs.existsSync(path.join(donetoastDir, 'toast.log')), false, 'no log file ships with the bundle');
 });
+
+test('the card is a tool window, so Windows shows it on every virtual desktop', () => {
+  // An ordinary window belongs to the desktop it opened on: a card raised on
+  // desktop 2 was absent from desktop 1. A tool window is not managed by
+  // virtual desktops, and being ONE window it is dismissed everywhere at once.
+  const toast = fs.readFileSync(path.join(donetoastDir, 'toast.ps1'), 'utf8');
+  assert.match(toast, /WS_EX_TOOLWINDOW = 0x00000080/);
+  assert.match(toast, /\(ex \| WS_EX_TOOLWINDOW\) & ~WS_EX_APPWINDOW/);
+  // Applied when the handle exists but before the window is shown, so the card
+  // never appears on a single desktop first.
+  const styled = toast.indexOf('$w.add_SourceInitialized(');
+  const shown = toast.indexOf('$w.Show()');
+  assert.ok(styled > -1 && shown > styled, 'the style must be set before the window is shown');
+  assert.match(toast.slice(styled, shown), /\[AANCardStyle\]::OnAllDesktops\(/);
+});

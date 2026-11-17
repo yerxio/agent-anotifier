@@ -24,6 +24,7 @@ This is a fork of [DevinoSolutions/anotifier-for-claude-codex-cursor](https://gi
 What differs from upstream:
 
 - **Windows desktop notifications are Donetoast cards**, not native toasts: a persistent card with a `知道了` button, in one size and five states. The card scripts are vendored under `assets/windows/donetoast/`.
+- **A card is on every virtual desktop.** Switch desktops and it is still there; dismiss it on one and it is gone from all of them.
 - **Windows needs nothing installed.** No PowerShell 7, no BurntToast module: cards and the terminal bell both run on the Windows PowerShell 5.1 that ships with the system.
 - **Setup makes no network request.** The icons ship in the repository instead of being downloaded.
 - **The update check is off by default**, and while it is off no command contacts the npm registry.
