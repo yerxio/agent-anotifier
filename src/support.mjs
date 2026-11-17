@@ -1,30 +1,8 @@
-// src/support.mjs — the ONE place the project's outbound "where to go" URLs live.
+// src/support.mjs — the one outbound "where to go" URL the CLI prints.
 //
-// SUPPORT_URL is read from package.json `funding.url` (the npm-standard field
-// that `npm fund` also surfaces), so changing the sponsorship destination is a
-// single package.json edit — the CLI, README badge and FUNDING.yml all follow.
-// These are only ever printed by interactive CLI commands, never on the hook
-// path and never inside a notification.
-import { createRequire } from 'node:module';
-
-const require = createRequire(import.meta.url);
-const pkg = require('../package.json');
-
-export const SUPPORT_URL = pkg.funding?.url ?? 'https://github.com/sponsors/DevinoSolutions';
+// This fork prints no sponsorship link, no community invite and no star ask:
+// it is an internal tool, nobody is being asked for money or attention, and
+// upstream's channels are not this fork's to hand out. What is left is the
+// pointer to upstream's documentation, which still describes the commands and
+// the configuration this fork shares with it.
 export const DOCS_URL = 'https://anotifier.io/docs/';
-
-// The upstream anotifier Discord: where to ask for help. A permanent, unlimited invite.
-export const COMMUNITY_URL = 'https://discord.gg/CWDxfEJGcS';
-
-// The UPSTREAM repo page. Deliberately not package.json `repository.url`, which
-// names this fork: a star is asked for the project other developers can find
-// and install, and that is upstream's.
-export const STAR_URL = 'https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor';
-
-// One sentence, reused verbatim by setup and status so the ask reads the same
-// everywhere and stays easy to grep for.
-export const SUPPORT_LINE = `♥ anotifier is free & open source. If it saves you time, consider supporting it: ${SUPPORT_URL}`;
-
-// The zero-cost ask, printed once at the end of a successful `setup` only —
-// setup is the one moment a user has just chosen the tool.
-export const STAR_LINE = `★ A GitHub star helps other developers find anotifier: ${STAR_URL}`;

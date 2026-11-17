@@ -1,39 +1,20 @@
-# Security Policy
+# Security
 
-## Supported Versions
+This repository is an internal fork of
+[DevinoSolutions/anotifier-for-claude-codex-cursor](https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor).
+It is used from a clone, is not published, and has no security contact or
+disclosure process of its own. A vulnerability in anotifier itself should be
+reported to the upstream project.
 
-Security fixes land on the latest `1.x` release. Please upgrade to the newest
-version before reporting — the issue may already be fixed.
+## What it touches
 
-| Version | Supported |
-|---------|:---------:|
-| latest 1.x | yes |
-| older      | no  |
+`anotifier` runs locally, reads `~/.anotifier/config.json`, and sends
+notifications to the endpoints you configure (ntfy topics, webhook URLs).
+Webhook URLs and bot tokens in your config are secrets: errors are logged with
+the URL's origin only, never the full URL.
 
-## Reporting a Vulnerability
-
-Report privately through GitHub Security Advisories: open the
-[Security tab](https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/security)
-of this repository and choose **Report a vulnerability**. That keeps the report
-private until a fix is available.
-
-Please do not open a public issue for a suspected vulnerability.
-
-Helpful details to include:
-
-- what an attacker can do, and the impact
-- OS and `anotifier` version
-- steps to reproduce, or a minimal config that triggers it
-
-This is a small maintainer team, so response time is best-effort rather than
-guaranteed — expect an initial acknowledgement within a few business days. If a
-report is confirmed, the fix and an advisory are published together.
-
-## Scope Notes
-
-`anotifier` runs locally, reads `~/.anotifier/config.json`, and can send
-notifications to third-party endpoints you configure (ntfy topics, webhook
-URLs). Version 1.3.0 and later can also send opt-in anonymous usage stats to the
-project's own PostHog (see the README, "Usage stats"). Webhook URLs and bot tokens in your config are secrets: errors are logged
-with the URL's origin only, never the full URL. Reports about secret leakage
-through logs, hook payloads, or notification content are in scope.
+With the defaults of this fork it makes no other network request: the update
+check is off, and setup downloads nothing. Two features inherited from upstream
+send data to upstream's own services, and both are off unless you turn them on:
+anonymous usage stats (`telemetry.enabled`, which interactive `setup` asks
+about) and error reporting (`sentry.enabled`).

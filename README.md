@@ -594,13 +594,9 @@ The Windows card is drawn by its own WPF window, not by the Windows notification
 
 The GitHub workflows in `.github/workflows/` come from upstream. Several need upstream's secrets or its hosted agents and do not pass in this fork; `Unit` and `E2E` are the ones that describe this repository.
 
-## Community
-
-This fork has no community of its own. Upstream's is the [anotifier Discord](https://discord.gg/CWDxfEJGcS): `anotifier --help` prints that invite, and `anotifier doctor` points there whenever a check warns or fails. It is the place for questions about anotifier in general, not about the changes made here.
-
 ## Upstream
 
-anotifier is written and maintained by [DevinoSolutions](https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor), which is where to send contributions to the project itself and where its documentation and website live ([anotifier.io](https://anotifier.io)). If it saves you time, [support the upstream project](https://github.com/sponsors/DevinoSolutions).
+anotifier is written and maintained by [DevinoSolutions](https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor); that is where the project itself, its documentation and its website ([anotifier.io](https://anotifier.io)) live. This fork takes nothing from that except the code: it has no sponsorship link, no community channel and no support contact of its own, and the CLI prints none.
 
 The Windows card is [donetoast](https://github.com/siiplasplas/donetoast) by siiplasplas, MIT; what was changed in the vendored copy is recorded in `assets/windows/donetoast/README.md`.
 

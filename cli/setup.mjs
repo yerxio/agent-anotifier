@@ -10,7 +10,7 @@ import { toastPlatform } from '../src/platforms/index.mjs';
 import { findWslPowerShell } from '../src/platforms/wsl.mjs';
 import { patchClaude, patchCodex, patchCursor, patchGemini, patchAntigravity } from '../setup/patch-config.mjs';
 import { ask, askYN, log } from './ui.mjs';
-import { DOCS_URL, STAR_LINE, SUPPORT_LINE } from '../src/support.mjs';
+import { DOCS_URL } from '../src/support.mjs';
 import { track } from '../src/telemetry.mjs';
 import { resolveSetupConsent } from './telemetry.mjs';
 import { TOAST_INSTALL_HINT, applyToastBackendResult, isProbeTimeout, probeCommand } from './toast-backend.mjs';
@@ -361,11 +361,7 @@ export async function run() {
 
   // 9. Summary — only reached when every detected tool patched cleanly.
   log('\n  ✓ Setup complete. Restart your AI tools to activate.', 'green');
-  log(`    Docs & guides: ${DOCS_URL}`, 'dim');
-  // The only place besides `status` where we ask for support — interactive
-  // CLI output only, never the hook path and never inside a notification.
-  log(`    ${STAR_LINE}`, 'dim');
-  log(`    ${SUPPORT_LINE}\n`, 'dim');
+  log(`    Docs & guides: ${DOCS_URL}\n`, 'dim');
 
   rl.close();
   track('setup_completed', {

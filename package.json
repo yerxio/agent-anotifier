@@ -44,10 +44,6 @@
     "url": "git+https://github.com/yerxio/agent-anotifier.git"
   },
   "homepage": "https://github.com/yerxio/agent-anotifier#readme",
-  "funding": {
-    "type": "github",
-    "url": "https://github.com/sponsors/DevinoSolutions"
-  },
   "license": "AGPL-3.0-or-later",
   "engines": {
     "node": ">=18.0.0"

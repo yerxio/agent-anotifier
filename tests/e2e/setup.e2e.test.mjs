@@ -5,7 +5,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { seedTempHome, writeUserConfig, runNode, randomTopic } from './helpers.mjs';
-import { STAR_LINE } from '../../src/support.mjs';
+
+// Anything that asks the user for money, a star, or to join a chat.
+const SOLICITATION = /sponsor|discord\.gg|github star|consider supporting/i;
 
 const readJSON = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
 
@@ -33,9 +35,10 @@ describe('real setup subprocess wires every detected tool', () => {
     const res = runNode(['cli/index.mjs', 'setup'], { home, stdin: answers, extraEnv: setupEnv });
     assert.equal(res.status, 0, `setup exited non-zero: ${res.stderr}`);
 
-    // The star ask prints exactly once, in the success summary.
-    assert.equal(res.stdout.split(STAR_LINE).length - 1, 1, res.stdout);
-    assert.ok(res.stdout.indexOf(STAR_LINE) > res.stdout.indexOf('Setup complete'), res.stdout);
+    // The success summary asks for nothing: no sponsorship link, no community
+    // invite, no star ask.
+    assert.match(res.stdout, /Setup complete/);
+    assert.doesNotMatch(res.stdout, SOLICITATION, res.stdout);
 
     // Config saved with our topic
     const cfg = readJSON(path.join(home, '.anotifier', 'config.json'));
@@ -159,7 +162,7 @@ describe('setup with partial / no tools installed', () => {
       // Nothing was set up — setup must fail loud, not exit 0 with a success banner (CL-16).
       assert.equal(res.status, 1, `setup should exit 1 when no tools are found: ${res.stderr}`);
       assert.match(res.stdout, /No supported AI tools/i);
-      assert.ok(!res.stdout.includes(STAR_LINE), 'no star ask after a failed setup');
+      assert.doesNotMatch(res.stdout, SOLICITATION, 'no ask after a failed setup either');
     } finally {
       fs.rmSync(home, { recursive: true, force: true });
     }

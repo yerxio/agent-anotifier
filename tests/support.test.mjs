@@ -1,59 +1,75 @@
-// tests/support.test.mjs — the support/docs URLs have exactly one home.
+// tests/support.test.mjs — this fork asks its users for nothing.
 //
-// SUPPORT_URL must be the package.json `funding.url` (npm's own field, so
-// `npm fund` and the CLI can never disagree), and both URLs must be real https
-// URLs — a typo here would ship a dead link in every `setup` run.
+// Upstream prints a sponsorship link, a Discord invite and a star ask from its
+// CLI. This is an internal fork: nobody is being asked for money or attention,
+// and those channels are upstream's, not this fork's to hand out. These checks
+// keep them from coming back through a merge.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { SUPPORT_URL, DOCS_URL, SUPPORT_LINE, STAR_URL, STAR_LINE } from '../src/support.mjs';
+import * as support from '../src/support.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const pkg = JSON.parse(fs.readFileSync(path.join(here, '..', 'package.json'), 'utf8'));
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json');
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-describe('src/support.mjs', () => {
-  it('SUPPORT_URL is exactly package.json funding.url', () => {
-    assert.equal(typeof pkg.funding?.url, 'string', 'package.json must declare funding.url');
-    assert.equal(SUPPORT_URL, pkg.funding.url);
+// A sponsorship page, a chat invite, or a request for a star.
+const SOLICITATION = /github\.com\/sponsors|opencollective|patreon|ko-fi|buymeacoffee|discord\.gg|discord(?:app)?\.com\/invite|github star|consider supporting/i;
+
+function runCli(args) {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'aan-support-'));
+  const res = spawnSync(process.execPath, ['cli/index.mjs', ...args], {
+    cwd: repoRoot,
+    env: { ...process.env, HOME: home, USERPROFILE: home, NO_COLOR: '1' },
+    encoding: 'utf8',
+    timeout: 60000,
+  });
+  fs.rmSync(home, { recursive: true, force: true });
+  return { status: res.status, stdout: res.stdout || '', stderr: res.stderr || '' };
+}
+
+function walk(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    if (['node_modules', '.git'].includes(e.name)) return [];
+    const p = path.join(dir, e.name);
+    return e.isDirectory() ? walk(p) : [p];
+  });
+}
+
+describe('no solicitation', () => {
+  it('support.mjs exports the docs URL and nothing else', () => {
+    assert.deepEqual(Object.keys(support), ['DOCS_URL']);
+    assert.match(support.DOCS_URL, /^https:\/\/\S+$/);
   });
 
-  it('both URLs are valid https URLs', () => {
-    for (const url of [SUPPORT_URL, DOCS_URL]) {
-      const u = new URL(url); // throws on garbage
-      assert.equal(u.protocol, 'https:', url);
-      assert.ok(u.hostname.includes('.'), url);
+  it('package.json declares no funding and is not publishable', () => {
+    assert.equal(pkg.funding, undefined);
+    assert.equal(pkg.private, true);
+    assert.equal(fs.existsSync(path.join(repoRoot, '.github', 'FUNDING.yml')), false);
+  });
+
+  it('--help, status and doctor print no sponsorship link, invite or star ask', () => {
+    for (const args of [['--help'], ['status'], ['doctor']]) {
+      const res = runCli(args);
+      assert.doesNotMatch(res.stdout + res.stderr, SOLICITATION, `anotifier ${args.join(' ')}`);
     }
   });
 
-  it('DOCS_URL points at the anotifier.io docs page', () => {
-    assert.equal(DOCS_URL, 'https://anotifier.io/docs/');
-  });
-
-  it('STAR_URL is the upstream repository, not this fork', () => {
-    // package.json names the fork; the star ask is for the project other
-    // developers can find and install, which is upstream's.
-    assert.equal(STAR_URL, 'https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor');
-    assert.notEqual(STAR_URL, pkg.repository.url.replace(/^git\+/, '').replace(/\.git$/, ''));
-    assert.match(STAR_URL, /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+$/);
-    assert.ok(!STAR_URL.endsWith('.git'), STAR_URL);
-  });
-
-  it('STAR_LINE is one line and carries the repo URL verbatim', () => {
-    assert.ok(STAR_LINE.includes(STAR_URL));
-    assert.match(STAR_LINE, /star/i);
-    assert.ok(!/\n/.test(STAR_LINE), 'single line');
-  });
-
-  it('SUPPORT_LINE asks gently and carries the URL verbatim', () => {
-    assert.ok(SUPPORT_LINE.includes(SUPPORT_URL));
-    assert.match(SUPPORT_LINE, /consider supporting/i);
-    assert.ok(!/\n/.test(SUPPORT_LINE), 'single line');
-  });
-
-  it('the sponsorship destination is the DevinoSolutions GitHub Sponsors page', () => {
-    // If this ever changes, package.json funding.url is the one place to edit.
-    assert.equal(SUPPORT_URL, 'https://github.com/sponsors/DevinoSolutions');
+  it('nothing shipped or documented carries one', () => {
+    // The code the CLI and the hooks run, and the documents a reader of this
+    // repository is pointed at. CHANGELOG.md and docs/ are history, and say
+    // what upstream did; they are not checked.
+    const checked = [
+      ...['src', 'cli', 'setup', 'commands', 'hooks', '.claude-plugin', '.github'].flatMap((d) => walk(path.join(repoRoot, d))),
+      ...['README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'package.json'].map((f) => path.join(repoRoot, f)),
+    ].filter((f) => /\.(m?js|json|md|ya?ml)$/.test(f));
+    for (const file of checked) {
+      assert.doesNotMatch(fs.readFileSync(file, 'utf8'), SOLICITATION, path.relative(repoRoot, file));
+    }
   });
 });

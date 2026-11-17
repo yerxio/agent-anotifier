@@ -11,7 +11,6 @@ import { readSnoozeUntil, quietHoursWindow, inQuietHours, formatClock } from '..
 import { effectiveThresholds } from '../src/usage-alert.mjs';
 import { effectiveContextThreshold } from '../src/context-alert.mjs';
 import { minDurationSeconds } from '../src/turn-timer.mjs';
-import { SUPPORT_LINE } from '../src/support.mjs';
 import { toastPlatform } from '../src/platforms/index.mjs';
 import { toastOffNoBackendLabel } from './toast-backend.mjs';
 import { c, box, kv, sectionHeader } from './ui.mjs';
@@ -218,8 +217,5 @@ export async function run() {
     console.log(`    ${c.muted(UPGRADE_COMMAND)}`);
   }
 
-  // Gentle, one-line ask at the very end of the command people run most.
-  console.log();
-  console.log(`  ${c.muted(SUPPORT_LINE)}`);
   console.log();
 }
