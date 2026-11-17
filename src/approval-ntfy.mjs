@@ -59,7 +59,7 @@ export function publishJson(base, payload, { token = null, timeoutMs = PUBLISH_T
       const body = JSON.stringify(payload);
       req = transportFor(url).request(url, {
         method: 'POST',
-        agent: false, // no keep-alive socket may outlive the hook (see sentry.mjs)
+        agent: false, // no keep-alive socket may outlive the hook
         rejectUnauthorized: true, // never trust NODE_TLS_REJECT_UNAUTHORIZED=0 (review of PR #96, M1)
         headers: { ...authHeaders(token), 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
       }, (res) => {

@@ -5,13 +5,13 @@
 // SECURITY: the webhook URL is a secret. Slack/Discord webhook URLs embed an
 // unguessable token and the Telegram endpoint carries the bot token in its
 // path, so failures are logged with the URL ORIGIN ONLY — never the full URL,
-// headers, or body — because errors.log can be mirrored to Sentry.
+// headers, or body — because errors.log is a plain file on disk.
 import https from 'node:https';
 import http from 'node:http';
 import { logHookError } from './error-log.mjs';
 import { httpFailureReason, networkFailureReason, noteFailure } from './channel-failure.mjs';
 
-// ntfy-parity 5s (not sentry.mjs's 1.5s): a webhook is a primary channel, not
+// ntfy-parity 5s: a webhook is a primary channel, not
 // an observability mirror. Worst-case wall clock stays under the 10s hook budget.
 const SEND_TIMEOUT_MS = 5000;
 
@@ -80,7 +80,7 @@ export function sendWebhook(webhookConfig, notification, { timeoutMs = SEND_TIME
     try {
       const req = transport.request(parsed, {
         method: 'POST',
-        agent: false, // no keep-alive socket may outlive the hook's process.exit() (see sentry.mjs)
+        agent: false, // no keep-alive socket may outlive the hook's process.exit()
         headers,
         timeout: timeoutMs,
       }, (res) => {

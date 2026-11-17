@@ -28,6 +28,7 @@ What differs from upstream:
 - **Setup makes no network request.** The icons ship in the repository instead of being downloaded.
 - **The update check is off by default**, and while it is off no command contacts the npm registry.
 - **The Windows terminal bell works.** Upstream's script threw on every run.
+- **Nothing is sent to anyone but you.** Upstream's opt-in usage stats and its Sentry error reporting are removed, along with the `anotifier telemetry` command and the question `setup` asked about it. The only requests anotifier makes are the notifications you configure (ntfy, webhooks) and, if you turn it on, the update check.
 - No click-to-focus on Windows: a card can only be dismissed.
 
 macOS, Linux and WSL behave as upstream does.
@@ -72,28 +73,28 @@ The hooks it writes point at this clone's `src/notify.mjs`, so keep the folder w
     <th>Needs Input</th>
   </tr>
   <tr>
-    <td><img src="assets/icons/claude.png" width="18" />&nbsp; <strong><a href="https://anotifier.io/claude-code/">Claude Code</a></strong></td>
+    <td><img src="assets/icons/claude.png" width="18" />&nbsp; <strong>Claude Code</strong></td>
     <td align="center">Native</td>
     <td align="center">Native</td>
     <td><code>Stop</code></td>
     <td><code>Notification</code></td>
   </tr>
   <tr>
-    <td><img src="assets/icons/codex.png" width="18" />&nbsp; <strong><a href="https://anotifier.io/codex/">Codex CLI</a></strong></td>
+    <td><img src="assets/icons/codex.png" width="18" />&nbsp; <strong>Codex CLI</strong></td>
     <td align="center">Native</td>
     <td align="center">Native</td>
     <td><code>Stop</code></td>
     <td><code>PermissionRequest</code></td>
   </tr>
   <tr>
-    <td><img src="assets/icons/cursor.png" width="18" />&nbsp; <strong><a href="https://anotifier.io/cursor/">Cursor</a></strong></td>
+    <td><img src="assets/icons/cursor.png" width="18" />&nbsp; <strong>Cursor</strong></td>
     <td align="center">Native</td>
     <td align="center">--</td>
     <td><code>stop</code></td>
     <td>--</td>
   </tr>
   <tr>
-    <td><img src="assets/icons/gemini.png" width="18" />&nbsp; <strong><a href="https://anotifier.io/gemini-cli/">Gemini CLI</a></strong></td>
+    <td><img src="assets/icons/gemini.png" width="18" />&nbsp; <strong>Gemini CLI</strong></td>
     <td align="center">--</td>
     <td align="center">Native</td>
     <td><code>AfterAgent</code></td>
@@ -116,7 +117,7 @@ On Windows, every tool's anotifier hooks deliver their desktop alert through the
 
 ### VS Code Native Support
 
-Claude Code, Codex, and Cursor all run inside VS Code. **anotifier** hooks directly into each tool's native hook system -- no VS Code extension required. The setup wizard detects installed tools and patches their configs automatically. On Windows, click a notification toast to jump straight back to your VS Code window (Cursor alerts are the exception: anotifier doesn't read a project folder from Cursor's event). More on the [VS Code page](https://anotifier.io/vscode/).
+Claude Code, Codex, and Cursor all run inside VS Code. **anotifier** hooks directly into each tool's native hook system -- no VS Code extension required. The setup wizard detects installed tools and patches their configs automatically. With native toasts on Windows (`toast.cards: false`), clicking one jumps straight back to your VS Code window (Cursor alerts are the exception: anotifier doesn't read a project folder from Cursor's event); a Donetoast card, the default, can only be dismissed.
 
 ## Installation
 
@@ -128,11 +129,10 @@ This fork is used from a clone, through `npm link`; see [Quick Start](#quick-sta
 anotifier setup            # First-time setup wizard
 anotifier status           # Show wired tools, config, backends
 anotifier test [channel]   # Fire test notification (toast | ntfy | webhook | bell | both)
-anotifier config [section] # Interactive settings (ntfy | webhook | sounds | events | sentry)
+anotifier config [section] # Interactive settings (ntfy | webhook | sounds | events | focus)
 anotifier doctor [--deep]  # Diagnose delivery per channel (--deep verifies real delivery)
 anotifier snooze [dur]     # Silence every channel for a while (30m | 2h | 90s | 45 = 45 minutes)
 anotifier snooze off       # Cancel the snooze early
-anotifier telemetry        # Show or change the opt-in anonymous usage stats (on | off); 1.3.0 and later
 anotifier uninstall        # Remove hooks from all tools
 ```
 
@@ -163,16 +163,8 @@ Config lives at `~/.anotifier/config.json`. Abbreviated — see [config/default-
     "url": "",
     "format": "generic"
   },
-  "sentry": {
-    "enabled": false,
-    "dsn": ""
-  },
   "updateCheck": {
     "enabled": false
-  },
-  "telemetry": {
-    "enabled": false,
-    "asked": false
   },
   "usageAlerts": {
     "enabled": true,
@@ -202,7 +194,7 @@ Config lives at `~/.anotifier/config.json`. Abbreviated — see [config/default-
 }
 ```
 
-`ntfy.click` is the URL opened when you tap a phone notification (empty = no link). `ntfy.fallbackServer` (optional, 1.7.0 and later) is a second ntfy server for the same topic: when `ntfy.server` fails (unreachable, a timeout, or an error such as a 429 daily limit), the same push is sent there once instead. For example, run your own server as `server` and keep `https://ntfy.sh` as the fallback, then subscribe your phone to the topic on both. With a fallback set, each attempt waits at most 3 s instead of 5 s, so both fit in the hook's time budget. If the main server accepts a push but answers too slowly, the fallback sends it too and a phone subscribed on both servers buzzes twice; a missed push is the worse failure. `anotifier test ntfy` says when only the fallback delivered. `terminalBell` rings the terminal that launched the agent -- for Claude Code (>=2.1.141) it rings through Claude Code's own terminal write path (hook JSON `terminalSequence`), which is safe in tmux, GNU screen, and on Windows per Claude Code's docs; other agents get a direct TTY/console bell. `webhook` posts to Slack, Discord, Telegram, or any URL (see below). `sentry` is opt-in error reporting (see [Error visibility](#error-visibility)). `updateCheck` is off by default, and while it is off anotifier never contacts the npm registry: not from a hook, and not from `anotifier status`, `--version` or any other command. Set `enabled` to `true` to be told about a newly published anotifier -- through whichever of your toast / ntfy / webhook channels are already on (never the terminal bell), and as a line under the CLI's output. It then asks the registry at most once per day, tells you at most once per version, and stays silent on any error. `telemetry` (1.3.0 and later) is the opt-in anonymous usage-stats choice: `enabled` is the choice (default `false`), and `asked` records that you made it (`setup` and `anotifier telemetry on|off` set it) so re-running setup does not ask again -- see [Usage stats](#usage-stats). `usageAlerts` warns before a Claude Code usage limit (see [Usage-limit warnings](#usage-limit-warnings-claude-code)): `enabled` turns it off, `thresholds` are the percentages (1-100) that trigger a warning. `contextAlerts` warns once per chat before Claude Code auto-compacts it (see [Context warnings](#context-warnings-claude-code)): `enabled` turns it off, `threshold` is the percentage (1-100) of the auto-compact window that triggers it. `quietHours` is a recurring nightly version of `snooze` (see [Quiet hours](#quiet-hours)). `toast.cards` (Windows only, default `true`) makes every desktop notification a Donetoast card; `false` uses native toasts through BurntToast instead, and is ignored on macOS, Linux and WSL. `toast.clickToFocus` applies to native toasts only: with cards on it does nothing on Windows, because a card can only be dismissed. Per-event `toastSound` is a sound name or the path of your own audio file (see [Custom sound files](#custom-sound-files)). A name is a Windows notification sound (`Default`, `IM`, `Mail`, `Reminder`, `SMS`, `Alarm`), played by [BurntToast](https://github.com/Windos/BurntToast) for a native toast and by the card itself for a Donetoast card, which looks up the file Windows has assigned to that name; a card plays it once, even a looping one like `Alarm`, because it stays on screen until it is clicked, and falls back to its own chime when the name is unknown; on macOS it is mapped to the closest built-in system sound (Windows names like `IM`/`Reminder` are translated, and `Default` or unrecognized names fall back to the system default), while on Linux a name is ignored; `priority` (`min` / `low` / `default` / `high` / `urgent`) drives both the ntfy push priority and the Linux `notify-send` urgency.
+`ntfy.click` is the URL opened when you tap a phone notification (empty = no link). `ntfy.fallbackServer` (optional, 1.7.0 and later) is a second ntfy server for the same topic: when `ntfy.server` fails (unreachable, a timeout, or an error such as a 429 daily limit), the same push is sent there once instead. For example, run your own server as `server` and keep `https://ntfy.sh` as the fallback, then subscribe your phone to the topic on both. With a fallback set, each attempt waits at most 3 s instead of 5 s, so both fit in the hook's time budget. If the main server accepts a push but answers too slowly, the fallback sends it too and a phone subscribed on both servers buzzes twice; a missed push is the worse failure. `anotifier test ntfy` says when only the fallback delivered. `terminalBell` rings the terminal that launched the agent -- for Claude Code (>=2.1.141) it rings through Claude Code's own terminal write path (hook JSON `terminalSequence`), which is safe in tmux, GNU screen, and on Windows per Claude Code's docs; other agents get a direct TTY/console bell. `webhook` posts to Slack, Discord, Telegram, or any URL (see below). `updateCheck` is off by default, and while it is off anotifier never contacts the npm registry: not from a hook, and not from `anotifier status`, `--version` or any other command. Set `enabled` to `true` to be told about a newly published anotifier -- through whichever of your toast / ntfy / webhook channels are already on (never the terminal bell), and as a line under the CLI's output. It then asks the registry at most once per day, tells you at most once per version, and stays silent on any error. `usageAlerts` warns before a Claude Code usage limit (see [Usage-limit warnings](#usage-limit-warnings-claude-code)): `enabled` turns it off, `thresholds` are the percentages (1-100) that trigger a warning. `contextAlerts` warns once per chat before Claude Code auto-compacts it (see [Context warnings](#context-warnings-claude-code)): `enabled` turns it off, `threshold` is the percentage (1-100) of the auto-compact window that triggers it. `quietHours` is a recurring nightly version of `snooze` (see [Quiet hours](#quiet-hours)). `toast.cards` (Windows only, default `true`) makes every desktop notification a Donetoast card; `false` uses native toasts through BurntToast instead, and is ignored on macOS, Linux and WSL. `toast.clickToFocus` applies to native toasts only: with cards on it does nothing on Windows, because a card can only be dismissed. Per-event `toastSound` is a sound name or the path of your own audio file (see [Custom sound files](#custom-sound-files)). A name is a Windows notification sound (`Default`, `IM`, `Mail`, `Reminder`, `SMS`, `Alarm`), played by [BurntToast](https://github.com/Windos/BurntToast) for a native toast and by the card itself for a Donetoast card, which looks up the file Windows has assigned to that name; a card plays it once, even a looping one like `Alarm`, because it stays on screen until it is clicked, and falls back to its own chime when the name is unknown; on macOS it is mapped to the closest built-in system sound (Windows names like `IM`/`Reminder` are translated, and `Default` or unrecognized names fall back to the system default), while on Linux a name is ignored; `priority` (`min` / `low` / `default` / `high` / `urgent`) drives both the ntfy push priority and the Linux `notify-send` urgency.
 
 ### Quiet hours
 
@@ -240,7 +232,7 @@ Off by default. Set `quietHours.enabled` to `true` and every channel goes silent
 
 Set `webhook.enabled: true` and a `webhook.url` to POST a notification to any HTTP endpoint. `format` selects the payload shape:
 
-**Slack** ([setup guide](https://anotifier.io/slack/)):
+**Slack**:
 ```json
 {
   "webhook": {
@@ -251,7 +243,7 @@ Set `webhook.enabled: true` and a `webhook.url` to POST a notification to any HT
 }
 ```
 
-**Discord** ([setup guide](https://anotifier.io/discord/)):
+**Discord**:
 ```json
 {
   "webhook": {
@@ -287,7 +279,7 @@ Set `webhook.enabled: true` and a `webhook.url` to POST a notification to any HT
 ```
 Generic POSTs `{title, message, source, project, event, timestamp}` as JSON. `authorization`, if set, is sent as the `Authorization` header for any format, not just generic.
 
-Webhook failures are logged with the URL's origin only, never the full URL -- a Slack/Discord webhook URL or a Telegram bot token is a secret, and errors.log can be mirrored to Sentry.
+Webhook failures are logged with the URL's origin only, never the full URL -- a Slack/Discord webhook URL or a Telegram bot token is a secret, and errors.log is a plain file on disk.
 
 Test it with `anotifier test webhook`, or turn it off for one event type with `"events": {"task_complete": {"webhookEnabled": false}}`.
 
@@ -414,7 +406,7 @@ When the file exists, it plays instead of the toast's own sound and the toast is
 - Linux: the first of `pw-play`, `paplay` and `aplay` that starts (`aplay` is used for `.wav` only). Linux toasts have no sound otherwise, so this is the only case where Linux plays one.
 - WSL: Windows plays it, like the toast, and the toast is silenced when the alert starts, before the player has launched. A Linux path or a `/mnt/c/...` path works; write `/mnt/c/Sounds/ask.mp3`, not `C:\Sounds\ask.mp3`, because a `C:\...` value is not a path Linux can open.
 
-If the file is missing or unreadable, anotifier does not try to play it. The toast then keeps the default sound on Windows and macOS (Linux has none), and one line goes to `~/.anotifier/errors.log`. The same line is written when no player can be started. On WSL the toast is already silent by then, so a failed player leaves that alert without a sound. The log never contains the path, and the path is never sent to usage stats or Sentry. A file that exists but cannot be decoded only fails inside the player: on Windows a short system sound plays instead; on macOS and Linux nothing plays.
+If the file is missing or unreadable, anotifier does not try to play it. The toast then keeps the default sound on Windows and macOS (Linux has none), and one line goes to `~/.anotifier/errors.log`. The same line is written when no player can be started. On WSL the toast is already silent by then, so a failed player leaves that alert without a sound. The log never contains the path. A file that exists but cannot be decoded only fails inside the player: on Windows a short system sound plays instead; on macOS and Linux nothing plays.
 
 `anotifier doctor` warns about a missing file, `anotifier config sounds` checks that a file exists when you type its path, and `anotifier test toast` plays the first one configured.
 
@@ -472,7 +464,7 @@ A hook run whose working folder is `~/work/acme`, or anything inside it, uses th
 
 - **Where rules live.** Only in your own `~/.anotifier/config.json`. There is deliberately no per-repo file (such as `.anotifier.json` in a project): a repository you clone could otherwise point your alerts, with your prompt and the message text, at its own webhook or ntfy topic.
 - **`match`.** An absolute path (`/home/me/acme`, `C:/work/acme`) or one starting with `~/` (your home folder). A rule matches that folder and everything inside it, so a hook running in `~/work/acme/src` matches too, while `~/work/acme-two` does not. `*` stands for any text within one folder name and `**` for any number of folders: `~/work/*/app`, `~/clients/**`. Paths are compared without regard to case on Windows and macOS. A relative `match` (`.`, `src/app`) is rejected, because it would have nothing to anchor to.
-- **What a rule can override.** `ntfy`, `toast`, `terminalBell`, `webhook`, `quietHours`, `events` (sound, priority, tags, which channels, `minDurationSeconds`) and `sources`. `sentry`, `updateCheck`, `telemetry`, `usageAlerts` and `projects` are machine-wide and are rejected inside a rule (reported by `anotifier status`, and left out of the rule). `contextAlerts` (`enabled`, `threshold`) is accepted and applies to the context warning of a session whose folder matches.
+- **What a rule can override.** `ntfy`, `toast`, `terminalBell`, `webhook`, `quietHours`, `events` (sound, priority, tags, which channels, `minDurationSeconds`) and `sources`. `updateCheck`, `usageAlerts` and `projects` are machine-wide and are rejected inside a rule (reported by `anotifier status`, and left out of the rule). `contextAlerts` (`enabled`, `threshold`) is accepted and applies to the context warning of a session whose folder matches.
 - **How rules combine.** Your defaults, then your top-level config, then every matching rule in the order it appears in the list, so a later rule wins. Objects merge key by key; a list or a single value is replaced. A rule only needs the keys it changes.
 - **Telegram.** A rule that sets `"webhook": { "format": "telegram" }` takes `chatId` from your top-level `webhook` when it has one. If the top level has no `chatId`, put it in the same rule as `format`; otherwise `anotifier status` reports it as missing.
 - **Where the folder comes from.** The `cwd` the agent sends with the hook; for Cursor and Antigravity CLI, which can omit it, the first workspace folder. With no folder in the hook input, no rule applies.
@@ -482,42 +474,7 @@ A hook run whose working folder is `~/work/acme`, or anything inside it, uses th
 
 ### Error visibility
 
-Hook and channel errors never interrupt your agent -- they're appended to `~/.anotifier/errors.log` and surfaced by `anotifier status`, so a misconfigured toast backend or unreachable ntfy topic shows up as a logged error instead of a silent no-op. Set `sentry.enabled` to `true` (with a `sentry.dsn`) to also mirror those errors to [Sentry](https://sentry.io) through a built-in, zero-dependency envelope client: no SDK is bundled, nothing leaves your machine unless you opt in, and only error data is sent.
-
-### Usage stats
-
-**Version 1.3.0 and later** can share anonymous usage stats. They are off unless you say yes, and 1.2.6 and earlier send nothing.
-
-- **Who is asked, and when.** The first `anotifier setup` you run in an interactive terminal asks (the default answer is Yes). A setup that is not run in a terminal -- piped input, or driven by an agent such as the `/anotifier:setup` command -- never asks and leaves stats **off**, and so does a setup whose input closes before you answer. Re-running `setup` never changes a choice you already made. A plugin-only install never runs setup, so it never sends anything.
-- **Change it any time:**
-
-```
-anotifier telemetry        # on/off, your install id, and the exact counts waiting to be sent
-anotifier telemetry off    # stop; deletes the local install id and pending counts
-anotifier telemetry on
-```
-
-- **Where it goes.** Events are sent to the project's own self-hosted [PostHog](https://posthog.com) at `posthog.devino.ca`, which the anotifier maintainers can read. Every event carries a random install id (created on first use, stored in `~/.anotifier/.telemetry.json`, derived from nothing about you or your machine) and `$geoip_disable: true`. Your IP address necessarily reaches the server, as with any connection, but the server is configured to discard client IP addresses, and no location is derived from them.
-- **Deleting what was sent.** `anotifier telemetry` shows your install id, and `anotifier telemetry off` prints the id it just deleted. To have the data already stored under an id removed, [open a GitHub issue](https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/issues) with that id. Without it there is no way to tell which events are yours.
-- **Always off** regardless of the setting when `DO_NOT_TRACK=1`, `ANOTIFIER_TELEMETRY=0`, or `CI` is set.
-
-**Never sent:** message text, project names, file paths, ntfy topics or servers, webhook URLs, hostnames, usernames, session ids, or error messages. Anything that is not on a fixed list below is sent as `other`, or as a name clamped to at most 40 letters, digits, `_`, `.` and `-` (which is how an unrecognized hook event name or an error class name is handled -- see `unmapped_events` and `cli_error`).
-
-**Every event, and every property it carries.** All events also carry the install id, a timestamp, and these base properties: `$lib` (`anotifier`), `$lib_version` and `anotifier_version` (the anotifier version), `os` (`win32`, `darwin`, `linux`), `os_release` (the OS kernel/build version string), `arch` (`x64`, `arm64`, ...), `node_version`, and `$geoip_disable` (`true`). When a command produces two events they travel in one request.
-
-| Event | Sent when | Properties |
-| --- | --- | --- |
-| `cli_command` | a CLI command finishes (not for `telemetry`) | `command` (`setup`, `status`, `test`, `config`, `doctor`, `snooze`, `uninstall`), `args` (a list; each is one of `--deep`, `--json`, `--strict`, `toast`, `ntfy`, `webhook`, `bell`, `both`, `sounds`, `events`, `sentry`, `off`, and anything else you typed -- a snooze duration, a typo -- is `other`), `exit_code`, `duration_ms` |
-| `cli_error` | a command throws | `command` (as above, or `other`), `error_name` (the error class name, clamped; `Error` if it does not fit), `error_code` (e.g. `ENOENT`, clamped; `null` if there is none). Never the error message. |
-| `setup_completed` | `setup` finishes | `tools_detected` (any of `claude`, `codex`, `cursor`, `gemini`, `antigravity`), `toast_backend_ready`, `icon_ready`, `config_rebuilt`, `ntfy_enabled` (booleans) |
-| `setup_failed` | `setup` finds no tool, or cannot patch one | `step` (`no_tools` or `patch`); for `patch` also `tools_detected` and `failed_tools` (same names as above) |
-| `telemetry_enabled` | you run `anotifier telemetry on` | `via` (`command`) |
-| `test_result` | `anotifier test` | `channel` (`toast`, `ntfy`, `webhook`, `bell`, `both`, or `all`), `outcomes` (per channel: `sent`, `failed`, `not_configured` or `skipped`) |
-| `doctor_result` | `anotifier doctor` | `deep`, `strict` (booleans), `checks` (check id -> `ok`, `info`, `warn` or `fail`; ids: `toast-backend`, `toast-auth`, `toast-deep`, `deep-probe`, `bell`, `ntfy-config`, `webhook-config`, `config`, `sound-files`, `focus`). Never the check's detail text. |
-| `uninstall_result` | `anotifier uninstall` | `removed`, `failed` (lists of `Claude Code`, `Codex CLI`, `Cursor IDE`, `Gemini CLI`, `Antigravity CLI`, `agentfocus://`) |
-| `hook_daily_summary` | at most once per 24 hours, from the end of a hook run | `runs`; `outcomes` (counts of `dispatched`, `suppressed_snooze`, `suppressed_quiet`, `held_back`, `skipped`, `duplicate`, `unmapped`, `error`); `sources` (`claude`, `codex`, `cursor`, `gemini`, `antigravity`, `other`); `events` (`task_complete`, `needs_input`, `session_start`, `other`); `unmapped_events` (counts per unrecognized hook event name, clamped as above, at most 10 distinct names, the rest under `other`); `channels` (`toast`, `ntfy`, `webhook`, `bell`, each with `ok` and `fail` counts); `latency` (counts per bucket: `lt_250ms`, `lt_500ms`, `lt_1s`, `lt_2500ms`, `ge_2500ms`); `window_start`, `window_hours`; and `config`, which says which features are on: `toast_enabled`, `toast_rich`, `ntfy_enabled`, `ntfy_rich`, `ntfy_custom_server` (whether the server is not ntfy.sh -- never which server), `webhook_enabled`, `webhook_format` (`generic`, `slack`, `discord`, `telegram`, `other`, or `null`), `bell_enabled`, `quiet_hours_enabled`, `update_check_enabled`, `sentry_enabled` |
-
-Hook runs themselves send nothing: each only bumps counters in `~/.anotifier/.telemetry.json`, and the end of a hook run sends the daily summary (waiting at most 0.8 seconds for the server; the limit covers the network send, and a failure never changes what the hook returns to your agent). CLI commands send their events in one request at the end of the command, waiting at most one second.
+Hook and channel errors never interrupt your agent -- they're appended to `~/.anotifier/errors.log` and surfaced by `anotifier status`, so a misconfigured toast backend or unreachable ntfy topic shows up as a logged error instead of a silent no-op. Nothing is reported anywhere else: the log is a file on your disk.
 
 ## How It Works
 
@@ -596,7 +553,7 @@ The GitHub workflows in `.github/workflows/` come from upstream. Several need up
 
 ## Upstream
 
-anotifier is written and maintained by [DevinoSolutions](https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor); that is where the project itself, its documentation and its website ([anotifier.io](https://anotifier.io)) live. This fork takes nothing from that except the code: it has no sponsorship link, no community channel and no support contact of its own, and the CLI prints none.
+anotifier is written and maintained by [DevinoSolutions](https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor). This fork takes the code and nothing else: it has no sponsorship link, no community channel, no support contact and no documentation site of its own, and the CLI prints none.
 
 The Windows card is [donetoast](https://github.com/siiplasplas/donetoast) by siiplasplas, MIT; what was changed in the vendored copy is recorded in `assets/windows/donetoast/README.md`.
 

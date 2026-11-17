@@ -30,7 +30,7 @@ const CACHE_PATH = path.join(getConfigDir(), '.update-check.json');
 
 // The CLI can afford npm's occasional slow response; the hook cannot. 2s keeps
 // the tail of a hook run well inside the 10s host budget it already shares with
-// the stdin read, the toast subprocess, and the Sentry flush.
+// the stdin read, the toast subprocess.
 const CLI_FETCH_TIMEOUT_MS = 3000;
 const HOOK_FETCH_TIMEOUT_MS = 2000;
 // Hard ceiling on the whole hook-path check (fetch + sends). Even a pathological
@@ -120,7 +120,7 @@ export function isNewer(a, b) {
 export function fetchLatest({ timeoutMs = CLI_FETCH_TIMEOUT_MS, currentVersion = pkg.version } = {}) {
   return new Promise((resolve) => {
     const req = https.get('https://registry.npmjs.org/anotifier/latest', {
-      agent: false, // no keep-alive socket may outlive the hook's process.exit() (see sentry.mjs)
+      agent: false, // no keep-alive socket may outlive the hook's process.exit()
       timeout: timeoutMs,
     }, (res) => {
       let data = '';

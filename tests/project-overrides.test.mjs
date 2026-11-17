@@ -404,7 +404,10 @@ describe('project rule validation', () => {
       }],
     });
     assert.equal(problem?.type, 'validate');
-    for (const key of ['telemetry', 'sentry', 'usageAlerts', 'projects', 'typo']) {
+    // `telemetry` and `sentry` are blocks this fork removed: dropped like any
+    // other key a rule may not set, but without a warning about a typo.
+    assert.doesNotMatch(problem.message, /telemetry|sentry/);
+    for (const key of ['usageAlerts', 'projects', 'typo']) {
       assert.match(problem.message, new RegExp(`projects\\[0\\]: unknown key "${key}"`));
     }
     assert.deepEqual(config.projects, [{ match: '/ok', ntfy: { topic: 'kept' } }]);

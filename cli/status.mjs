@@ -118,7 +118,6 @@ export async function run() {
   const ntfyValue = config.ntfy?.enabled && config.ntfy?.topic
     ? c.success(`${config.ntfy.server}/${config.ntfy.topic}`)
     : c.muted('disabled');
-  const sentryValue = config.sentry?.enabled ? c.success('enabled') : c.muted('disabled');
 
   // Both suppression sources, since either one alone silences every channel and
   // "why did nothing fire?" is exactly the question `status` exists to answer.
@@ -166,7 +165,6 @@ export async function run() {
     '',
     kv('Platform', platLabel),
     kv('Toast', toastValue),
-    kv('Sentry', sentryValue),
     kv('Snooze', snoozeValue),
     kv('Quiet hours', quietValue),
     kv('Usage alerts', usageAlertsValue(config, claudeStatuslineWired())),

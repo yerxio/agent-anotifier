@@ -323,11 +323,11 @@ describe('loadEffectiveConfig (the one wiring point)', () => {
 
   it('a rule cannot override a machine-level key', () => {
     withConfig({
-      sentry: { enabled: false, dsn: '' },
-      projects: [{ match: PROJECT, sentry: { enabled: true, dsn: 'https://x@example.invalid/1' } }],
+      updateCheck: { enabled: false },
+      projects: [{ match: PROJECT, updateCheck: { enabled: true } }],
     }, (load) => {
       // The loader drops the excluded key from the rule, and the resolver would skip it anyway.
-      assert.equal(loadEffectiveConfig(event(PROJECT), load).sentry.enabled, false);
+      assert.equal(loadEffectiveConfig(event(PROJECT), load).updateCheck.enabled, false);
     });
   });
 });

@@ -72,18 +72,23 @@ export function parseHHMM(value) {
   return match ? Number(match[1]) * 60 + Number(match[2]) : null;
 }
 
-const TOP_LEVEL_KEYS = ['ntfy', 'toast', 'terminalBell', 'webhook', 'sentry', 'updateCheck', 'telemetry', 'usageAlerts', 'contextAlerts', 'quietHours', 'suppressWhenFocused', 'events', 'sources'];
+const TOP_LEVEL_KEYS = ['ntfy', 'toast', 'terminalBell', 'webhook', 'updateCheck', 'usageAlerts', 'contextAlerts', 'quietHours', 'suppressWhenFocused', 'events', 'sources'];
 
 // Top-level keys a project rule may NOT override: machine- or account-wide
-// settings that make no sense per workspace. `sentry`, `updateCheck` and
-// `telemetry` are process-level (error reporting, the update check, opt-in
-// stats) and are read outside any workspace; `usageAlerts` is about the
+// settings that make no sense per workspace. `updateCheck` is process-level
+// and is read outside any workspace; `usageAlerts` is about the
 // account's plan quota, not a project; `projects` cannot nest. Everything else
 // (channels, sounds, priority, quiet hours, suppressWhenFocused, event overrides,
 // min-duration, context alerts, source labels) is allowed.
 // One nested key is excluded too: `toast.disabledBySetup` is a flag written by
 // `anotifier setup` for this machine, not a preference.
-const PROJECT_EXCLUDED_KEYS = ['sentry', 'updateCheck', 'telemetry', 'usageAlerts', 'projects'];
+const PROJECT_EXCLUDED_KEYS = ['updateCheck', 'usageAlerts', 'projects'];
+
+// Blocks this fork removed: error reporting to Sentry and the opt-in usage
+// stats, both of which sent data to an outside service. A config written by
+// upstream, or by an earlier setup, still carries them; they are dropped on
+// load without a warning, since there is nothing left for them to configure.
+export const REMOVED_KEYS = ['sentry', 'telemetry'];
 const PROJECT_KEYS = TOP_LEVEL_KEYS.filter((key) => !PROJECT_EXCLUDED_KEYS.includes(key));
 
 // Schema check for one settings object (the top-level user config, or the
@@ -119,9 +124,7 @@ function validateSettings(user, { inRule = false, inheritedWebhook = null } = {}
   checkBlock('toast', { enabled: 'boolean', cards: 'boolean', clickToFocus: 'boolean', richContent: 'boolean', disabledBySetup: 'boolean' });
   checkBlock('terminalBell', { enabled: 'boolean' });
   checkBlock('webhook', { enabled: 'boolean', url: 'string', format: 'string', chatId: 'string', authorization: 'string', richContent: 'boolean' });
-  checkBlock('sentry', { enabled: 'boolean', dsn: 'string' });
   checkBlock('updateCheck', { enabled: 'boolean' });
-  checkBlock('telemetry', { enabled: 'boolean', asked: 'boolean' });
 
   // Usage-limit warning thresholds: percentages in (0, 100]. A bad list is
   // dropped so the 70/85/95 default applies rather than no warnings at all.
@@ -274,7 +277,7 @@ function validateSettings(user, { inRule = false, inheritedWebhook = null } = {}
   }
 
   for (const key of Object.keys(user)) {
-    if (key !== 'projects' && !TOP_LEVEL_KEYS.includes(key)) issues.push(`unknown key "${key}"`);
+    if (key !== 'projects' && !TOP_LEVEL_KEYS.includes(key) && !REMOVED_KEYS.includes(key)) issues.push(`unknown key "${key}"`);
   }
   return issues;
 }
@@ -507,6 +510,9 @@ export function loadConfigResult(configPath = getConfigPath()) {
   }
 
   const issues = validateUserConfig(user);
+  // Dropped before the merge, so they are neither acted on nor written back the
+  // next time a command saves the config.
+  if (user && typeof user === 'object') for (const key of REMOVED_KEYS) delete user[key];
   deepMerge(config, user);
   const problem = issues.length
     ? { type: 'validate', message: `${configPath}: ${issues.join('; ')}` }
@@ -515,7 +521,7 @@ export function loadConfigResult(configPath = getConfigPath()) {
 }
 
 // Hook-path loader: never throws, but a broken user config is logged to
-// errors.log (and Sentry when enabled) instead of being silently ignored.
+// errors.log instead of being silently ignored.
 // CLI commands should prefer loadConfigResult and fail loud on problem.
 export function loadConfig(configPath = getConfigPath()) {
   const { config, problem } = loadConfigResult(configPath);
@@ -525,7 +531,7 @@ export function loadConfig(configPath = getConfigPath()) {
 
 // Atomic write: temp file + rename so a crash mid-write can never leave a
 // truncated config.json behind. The file can hold webhook URLs, the ntfy topic
-// and the Sentry DSN, so it is written owner-only (0600) and a newly created
+// so it is written owner-only (0600) and a newly created
 // directory is 0700. The rename replaces any older 0644 file.
 export function saveConfig(config, configPath = getConfigPath()) {
   const dir = path.dirname(configPath);

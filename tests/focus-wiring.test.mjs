@@ -376,8 +376,7 @@ describe('CLI surface', () => {
 
   it('`anotifier config focus` and the help text know the section', () => {
     const index = fs.readFileSync(path.join(repoRoot, 'cli', 'index.mjs'), 'utf8');
-    assert.match(index, /KNOWN_ARGS = new Set\(\[[^\]]*'focus'/);
-    assert.match(index, /\(ntfy \| webhook \| sounds \| events \| sentry \| focus\)/);
+    assert.match(index, /\(ntfy \| webhook \| sounds \| events \| focus\)/);
     assert.match(fs.readFileSync(path.join(repoRoot, 'commands', 'config.md'), 'utf8'), /`focus`/);
   });
 

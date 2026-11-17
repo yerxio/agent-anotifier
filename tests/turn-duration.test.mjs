@@ -470,18 +470,6 @@ describe('notify.mjs end to end (real subprocess, real local HTTP server)', () =
     assert.match(webhookMessages()[0], /Task complete \(took 1m \d+s\)/);
   });
 
-  it('a filtered run is counted as the skipped telemetry outcome', async () => {
-    const { home, cfgDir } = setupHome({ ...baseConfig(600), telemetry: { enabled: true, asked: true } });
-    const env = { ANOTIFIER_TELEMETRY: '1', ANOTIFIER_TELEMETRY_URL: `${base}/telemetry`, DO_NOT_TRACK: '' };
-    await runHook(home, prompt, { env });
-    const res = await runHook(home, stop, { env });
-    assert.equal(res.status, 0, res.stderr);
-    assert.equal(received.filter((r) => r.url === '/hook').length, 0, 'nothing was sent to the webhook');
-    const state = JSON.parse(fs.readFileSync(path.join(cfgDir, '.telemetry.json'), 'utf8'));
-    assert.equal(state.counters.outcomes.skipped, 1);
-    assert.equal(state.counters.outcomes.dispatched, undefined);
-  });
-
   it('an unknown duration is never filtered and has no suffix', async () => {
     const { home } = setupHome(baseConfig(600));
     const res = await runHook(home, stop);

@@ -22,7 +22,7 @@ import { getConfigDir, loadConfigResult, resolveProjectConfig } from './config-l
 import { sendNtfy } from './ntfy.mjs';
 import { sendWebhook } from './webhook.mjs';
 import { resolveToastBackend } from './platforms/index.mjs';
-import { logHookError, flushErrorReporting } from './error-log.mjs';
+import { logHookError } from './error-log.mjs';
 
 export const DEFAULT_THRESHOLDS = [70, 85, 95];
 
@@ -350,7 +350,6 @@ async function deliverMain(arg, workspaceArg) {
   } catch (err) {
     logHookError('usage-alert:deliver', err);
   }
-  await flushErrorReporting();
   process.exit(0);
 }
 

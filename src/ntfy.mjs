@@ -102,7 +102,7 @@ function postNtfy(ntfyConfig, notification, timeoutMs, context) {
     try {
       const req = transport.request(parsed, {
         method: 'POST',
-        agent: false, // no keep-alive socket may outlive the hook's process.exit() (see sentry.mjs)
+        agent: false, // no keep-alive socket may outlive the hook's process.exit()
         headers: { ...headers, 'Content-Type': 'text/plain; charset=utf-8' },
       }, (res) => {
         res.resume(); // drain

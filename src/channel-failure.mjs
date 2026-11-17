@@ -7,7 +7,7 @@
 // on the same channel running at once each keep their own category. A sender
 // called outside a scope (the CLI test command, doctor) notes nothing. The value
 // is ALWAYS one of FAILURE_REASONS: never a message, stderr, path, URL, topic or
-// exit code, because it ends up in the opt-in daily summary (see telemetry.mjs).
+// exit code, so that it can be logged and shown without leaking a path or a message.
 // Nothing here can throw.
 import { AsyncLocalStorage } from 'node:async_hooks';
 

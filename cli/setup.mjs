@@ -10,9 +10,6 @@ import { toastPlatform } from '../src/platforms/index.mjs';
 import { findWslPowerShell } from '../src/platforms/wsl.mjs';
 import { patchClaude, patchCodex, patchCursor, patchGemini, patchAntigravity } from '../setup/patch-config.mjs';
 import { ask, askYN, log } from './ui.mjs';
-import { DOCS_URL } from '../src/support.mjs';
-import { track } from '../src/telemetry.mjs';
-import { resolveSetupConsent } from './telemetry.mjs';
 import { TOAST_INSTALL_HINT, applyToastBackendResult, isProbeTimeout, probeCommand } from './toast-backend.mjs';
 import { fileURLToPath } from 'node:url';
 
@@ -198,7 +195,6 @@ export async function run() {
     log('\n  No supported AI tools found. Install Claude Code, Codex, Gemini CLI, Antigravity CLI, or Cursor first.', 'red');
     rl.close();
     // Sent only if this install opted in on an earlier run; nothing was asked yet.
-    track('setup_failed', { step: 'no_tools' });
     process.exitCode = 1;
     return;
   }
@@ -298,11 +294,6 @@ export async function run() {
     config.ntfy.enabled = false;
   }
 
-  // 6b. Anonymous usage stats. Only a first-time setup on a real terminal asks
-  // (default Yes); piped/agent-driven runs, closed input, an earlier answer and
-  // DO_NOT_TRACK / CI all leave the stored choice (OFF by default) untouched.
-  await resolveSetupConsent(rl, config);
-
   saveConfig(config, getConfigPath());
   log('    ✓ Config saved', 'green');
 
@@ -336,11 +327,6 @@ export async function run() {
     for (const f of failures) log(`    ✗ ${f.tool}: ${f.reason}`, 'red');
     log('    Fix the errors above and re-run setup.', 'yellow');
     rl.close();
-    track('setup_failed', {
-      step: 'patch',
-      tools_detected: tools.map((t) => t.name),
-      failed_tools: failures.map((f) => f.name),
-    }, { config });
     process.exitCode = 1;
     return;
   }
@@ -361,14 +347,7 @@ export async function run() {
 
   // 9. Summary — only reached when every detected tool patched cleanly.
   log('\n  ✓ Setup complete. Restart your AI tools to activate.', 'green');
-  log(`    Docs & guides: ${DOCS_URL}\n`, 'dim');
+  log('');
 
   rl.close();
-  track('setup_completed', {
-    tools_detected: tools.map((t) => t.name),
-    toast_backend_ready: toastReady === true,
-    icon_ready: iconReady,
-    config_rebuilt: Boolean(problem),
-    ntfy_enabled: config.ntfy.enabled,
-  }, { config });
 }

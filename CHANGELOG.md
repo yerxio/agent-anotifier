@@ -32,6 +32,8 @@ not published to npm; `package.json` is marked `private`.
 
 #### Removed
 
+- **Usage stats and Sentry error reporting.** Both sent data to an outside service. The `telemetry` and `sentry` config blocks, the `anotifier telemetry` command, the `config sentry` section and the question interactive `setup` asked (default Yes) are gone; a config that still carries either block loads without a warning and loses it on the next save. Errors are still written to `~/.anotifier/errors.log`, and nowhere else.
+- **Every ask and outside link in the CLI.** The sponsorship link, the Discord invite, the star ask and the link to upstream's documentation site are no longer printed by `--help`, `setup`, `status` or `doctor`; `funding` and `.github/FUNDING.yml` are removed.
 - The website source (`landing/`) and its workflows, the release workflow that published to npm, and the `setup/install.sh` / `setup/install.ps1` bootstrappers, which ran `npx anotifier@latest` and so installed upstream's package rather than this fork.
 
 ### Upstream, unreleased

@@ -21,20 +21,16 @@
     "format": "generic",
     "richContent": true
   },
-  "sentry": {
-    "enabled": false,
-    "dsn": ""
-  },
   "updateCheck": {
     "enabled": false
   },
-  "telemetry": {
-    "enabled": false,
-    "asked": false
-  },
   "usageAlerts": {
     "enabled": true,
-    "thresholds": [70, 85, 95]
+    "thresholds": [
+      70,
+      85,
+      95
+    ]
   },
   "contextAlerts": {
     "enabled": true,

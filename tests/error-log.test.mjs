@@ -9,7 +9,6 @@ import {
   getErrorLogPath,
   logHookError,
   readRecentHookErrors,
-  flushErrorReporting,
 } from '../src/error-log.mjs';
 
 describe('error-log', () => {
@@ -63,8 +62,4 @@ describe('error-log', () => {
     assert.ok(!lines.some((l) => l.includes('"m0"')), 'oldest entries dropped');
   });
 
-  it('flushErrorReporting resolves immediately when Sentry is not enabled', async () => {
-    logHookError('ctx', new Error('local only'), undefined, base);
-    await flushErrorReporting(100); // must not hang or throw
-  });
 });

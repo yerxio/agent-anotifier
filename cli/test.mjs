@@ -5,7 +5,6 @@ import { sendWebhook } from '../src/webhook.mjs';
 import { resolveToastBackend } from '../src/platforms/index.mjs';
 import { checkSoundFile, isSoundFilePath } from '../src/platforms/sound.mjs';
 import { sendBell } from '../src/bell.mjs';
-import { track } from '../src/telemetry.mjs';
 import { c, spinner } from './ui.mjs';
 
 // The channels `test` understands. Omitting the arg runs all applicable ones;
@@ -63,14 +62,12 @@ export async function run(channel) {
   // is exempt (see below), so only toast/ntfy flip this.
   let failed = false;
   // Per-channel outcome for the opt-in usage stats: sent | failed | not_configured | skipped.
-  const outcomes = {};
 
   if (doToast) {
     const spin = spinner('Sending toast notification...');
     const sendToast = await resolveToastBackend();
     const customSound = isSoundFilePath(testNotif.toastSound) && !checkSoundFile(testNotif.toastSound).reason;
     const ok = await sendToast(testNotif);
-    outcomes.toast = ok ? 'sent' : 'failed';
     if (ok) spin.stop(customSound ? 'Toast sent, playing your custom sound' : 'Toast sent');
     else { spin.fail('Toast failed'); failed = true; }
   }
@@ -79,12 +76,10 @@ export async function run(channel) {
     if (config.ntfy?.enabled && config.ntfy?.topic) {
       const spin = spinner('Sending ntfy push...');
       const { ok, via, fallback } = await sendNtfyDetailed(config.ntfy, testNotif);
-      outcomes.ntfy = ok ? 'sent' : 'failed';
       if (via === 'fallback') spin.warn(`ntfy sent through the fallback ${fallback}; the main server ${config.ntfy.server || 'https://ntfy.sh'} failed (see anotifier status)`);
       else if (ok) spin.stop('ntfy sent');
       else { spin.fail('ntfy failed'); failed = true; }
     } else {
-      outcomes.ntfy = 'not_configured';
       console.log(`  ${c.warn('⚠')} ${c.muted('ntfy not configured — run')} ${c.white('anotifier setup')} ${c.muted('first')}`);
     }
   }
@@ -93,11 +88,9 @@ export async function run(channel) {
     if (config.webhook?.enabled && config.webhook?.url) {
       const spin = spinner('Sending webhook...');
       const ok = await sendWebhook(config.webhook, testNotif);
-      outcomes.webhook = ok ? 'sent' : 'failed';
       if (ok) spin.stop('Webhook sent');
       else { spin.fail('Webhook failed'); failed = true; }
     } else {
-      outcomes.webhook = 'not_configured';
       console.log(`  ${c.warn('⚠')} ${c.muted('webhook not configured — run')} ${c.white('anotifier config')} ${c.muted('first')}`);
     }
   }
@@ -105,7 +98,6 @@ export async function run(channel) {
   if (doBell) {
     const spin = spinner('Ringing terminal bell...');
     const ok = await sendBell();
-    outcomes.bell = ok ? 'sent' : 'skipped';
     if (ok) {
       spin.stop('Bell rung');
     } else {
@@ -115,7 +107,6 @@ export async function run(channel) {
     }
   }
 
-  track('test_result', { channel: channel || 'all', outcomes }, { config });
 
   if (failed) process.exitCode = 1;
   console.log();

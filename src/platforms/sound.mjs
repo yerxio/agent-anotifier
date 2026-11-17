@@ -5,8 +5,7 @@
 // never waits for the sound to finish. Each platform backend wires it in.
 //
 // Privacy: the path is the user's own filesystem layout. It is never put in an
-// error-log entry, because logHookError mirrors entries to Sentry when the user
-// opted in. Failures are logged as fixed messages with a reason code only.
+// error-log entry. Failures are logged as fixed messages with a reason code only.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';

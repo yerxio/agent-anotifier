@@ -88,31 +88,6 @@ export async function configFocus(rl, config) {
   config.suppressWhenFocused = await askYN(rl, 'Skip alerts while the agent window is in front?', config.suppressWhenFocused === true);
 }
 
-// A Sentry DSN looks like https://<publicKey>@<host>/<projectId>. Validate the
-// shape with a plain URL parse plus a non-empty key and project id — enough to
-// reject obvious typos loudly without pretending to be a full Sentry client.
-function isValidDsn(dsn) {
-  if (!dsn || typeof dsn !== 'string') return false;
-  let u;
-  try { u = new URL(dsn); } catch { return false; }
-  const projectId = u.pathname.replace(/\//g, '');
-  return (u.protocol === 'https:' || u.protocol === 'http:') && u.username.length > 0 && projectId.length > 0;
-}
-
-async function configSentry(rl, config) {
-  log('\n  Sentry Configuration\n', 'bold');
-  if (!config.sentry) config.sentry = { enabled: false, dsn: '' };
-  config.sentry.enabled = await askYN(rl, 'Enable Sentry error reporting?', config.sentry.enabled);
-  if (config.sentry.enabled) {
-    const dsn = await ask(rl, 'Sentry DSN', config.sentry.dsn);
-    if (isValidDsn(dsn)) {
-      config.sentry.dsn = dsn;
-    } else {
-      log('  Invalid DSN — expected https://<key>@<host>/<project>. Sentry left disabled.', 'red');
-      config.sentry.enabled = false;
-    }
-  }
-}
 
 export async function run(section) {
   // Interactive-only: bail loudly rather than hang on non-TTY stdin.
@@ -141,7 +116,6 @@ export async function run(section) {
   else if (section === 'webhook') await configWebhook(rl, config);
   else if (section === 'sounds') await configSounds(rl, config);
   else if (section === 'events') await configEvents(rl, config);
-  else if (section === 'sentry') await configSentry(rl, config);
   else if (section === 'focus') await configFocus(rl, config);
   else {
     log('\n  anotifier config\n', 'bold');
@@ -149,15 +123,13 @@ export async function run(section) {
     log('  2. Webhook');
     log('  3. Sounds');
     log('  4. Events');
-    log('  5. Sentry');
-    log('  6. Focus');
-    const choice = await ask(rl, 'Choose (1-6)', '1');
+    log('  5. Focus');
+    const choice = await ask(rl, 'Choose (1-5)', '1');
     if (choice === '1') await configNtfy(rl, config);
     else if (choice === '2') await configWebhook(rl, config);
     else if (choice === '3') await configSounds(rl, config);
     else if (choice === '4') await configEvents(rl, config);
-    else if (choice === '5') await configSentry(rl, config);
-    else if (choice === '6') await configFocus(rl, config);
+    else if (choice === '5') await configFocus(rl, config);
   }
 
   saveConfig(config, getConfigPath());

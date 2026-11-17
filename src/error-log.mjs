@@ -1,26 +1,16 @@
 // src/error-log.mjs — Error visibility for the hook path.
 // The hook must never crash the host agent, but failures must never be
 // invisible either: every error is appended to ~/.anotifier/errors.log
-// (bounded size), surfaced by `anotifier status`, and mirrored to
-// Sentry when the user opted in via config.sentry.
+// (bounded size) and surfaced by `anotifier status`. It goes nowhere else:
+// nothing is reported to any outside service.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { sendSentryErrorEvent } from './sentry.mjs';
 
 const MAX_LOG_BYTES = 128 * 1024;
 
-let sentryConfig = null;
-const pendingSentrySends = [];
-
 export function getErrorLogPath(baseDir = os.homedir()) {
   return path.join(baseDir, '.anotifier', 'errors.log');
-}
-
-// Call once per process (from the hook entry point or a CLI command) with
-// config.sentry. Until called, errors are logged locally only.
-export function enableSentryMirror(config) {
-  sentryConfig = config && config.enabled && config.dsn ? config : null;
 }
 
 // Append one JSONL entry. Never throws: the logger is the last resort and
@@ -42,10 +32,6 @@ export function logHookError(context, error, extra = undefined, baseDir = os.hom
   } catch {
     // Filesystem unavailable — nothing safer to do.
   }
-
-  if (sentryConfig) {
-    pendingSentrySends.push(sendSentryErrorEvent(sentryConfig, { context, error, extra }));
-  }
 }
 
 // Keep the newest half when the log outgrows MAX_LOG_BYTES.
@@ -55,17 +41,6 @@ function rotateIfOversized(logPath) {
   const lines = fs.readFileSync(logPath, 'utf8').split('\n').filter(Boolean);
   const kept = lines.slice(Math.floor(lines.length / 2));
   fs.writeFileSync(logPath, kept.join('\n') + '\n', 'utf8');
-}
-
-// Await queued Sentry sends, bounded so a dead network can never stall the
-// hook past its budget. Safe to call when nothing is pending.
-export async function flushErrorReporting(timeoutMs = 1200) {
-  if (pendingSentrySends.length === 0) return;
-  const pending = pendingSentrySends.splice(0);
-  await Promise.race([
-    Promise.allSettled(pending),
-    new Promise((resolve) => setTimeout(resolve, timeoutMs).unref?.()),
-  ]);
 }
 
 // Newest-last recent errors for `status`. Returns [] when there is no log.

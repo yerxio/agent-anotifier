@@ -18,12 +18,9 @@ import { sendToast as sendWslToast } from '../src/platforms/wsl.mjs';
 import { sendNtfy } from '../src/ntfy.mjs';
 import { sendWebhook } from '../src/webhook.mjs';
 import { trackChannel } from '../src/notify.mjs';
-import { recordHookRun, readState } from '../src/telemetry.mjs';
 import { useFakeHome } from './fake-home.mjs';
 useFakeHome();
 
-const ON = { telemetry: { enabled: true } };
-const tmpState = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'aan-reason-')), '.telemetry.json');
 
 // Run one send the way the hook does and report { ok, reason }. The reason is only
 // meaningful when ok is false (trackChannel reads it on failure alone).
@@ -103,42 +100,6 @@ describe('trackChannel threads the reason', () => {
     const stray = runScoped(async () => { noteFailure('toast', 'timeout'); return false; });
     assert.deepEqual(await trackChannel('toast', async () => false), { channel: 'toast', ok: false, reason: 'other' });
     await stray.promise;
-  });
-});
-
-describe('recordHookRun counts reasons beside ok/fail', () => {
-  it('adds channels.<name>.reasons and keeps ok/fail', () => {
-    const statePath = tmpState();
-    const opts = { env: { ANOTIFIER_TELEMETRY: '1' }, statePath, now: 1000 };
-    recordHookRun(ON, {
-      outcome: 'dispatched', source: 'codex',
-      channels: [
-        { channel: 'toast', ok: false, reason: 'spawn_error' },
-        { channel: 'bell', ok: false, reason: 'no_tty' },
-        { channel: 'ntfy', ok: true },
-      ],
-    }, opts);
-    recordHookRun(ON, { outcome: 'dispatched', source: 'codex', channels: [{ channel: 'toast', ok: false, reason: 'spawn_error' }] }, opts);
-    const { counters } = readState(statePath);
-    assert.deepEqual(counters.channels, {
-      toast: { ok: 0, fail: 2, reasons: { spawn_error: 2 } },
-      bell: { ok: 0, fail: 1, reasons: { no_tty: 1 } },
-      ntfy: { ok: 1, fail: 0 },
-    });
-  });
-  it('an unknown or missing reason is other, and a success never gets one', () => {
-    const statePath = tmpState();
-    recordHookRun(ON, {
-      outcome: 'dispatched', source: 'claude',
-      channels: [
-        { channel: 'webhook', ok: false, reason: 'https://hooks.example.com/services/SECRET' },
-        { channel: 'webhook', ok: false },
-        { channel: 'webhook', ok: true, reason: 'timeout' },
-      ],
-    }, { env: { ANOTIFIER_TELEMETRY: '1' }, statePath });
-    const { counters } = readState(statePath);
-    assert.deepEqual(counters.channels.webhook, { ok: 1, fail: 2, reasons: { other: 2 } });
-    assert.ok(!JSON.stringify(counters).includes('SECRET'));
   });
 });
 
