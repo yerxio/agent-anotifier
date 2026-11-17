@@ -5,7 +5,7 @@
 //   --help          → prints it
 //   doctor          → prints it under a run with anything to fix
 //   doctor --json   → never (stdout must stay valid JSON)
-//   README, site    → link the same invite; no other invite anywhere
+//   README          → links the same invite; no other invite anywhere
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -75,11 +75,6 @@ describe('community invite', () => {
     const readme = fs.readFileSync(path.join(repoRoot, 'README.md'), 'utf8').replace(/\r\n/g, '\n');
     const section = readme.split('\n## Community\n')[1]?.split('\n## ')[0] ?? '';
     assert.ok(invitesIn(section).some((u) => u === CANONICAL), 'README ## Community must link the invite');
-  });
-
-  it('the website reads the same invite from its one constant', () => {
-    const site = fs.readFileSync(path.join(repoRoot, 'landing', 'lib', 'site.ts'), 'utf8');
-    assert.match(site, new RegExp(`export const COMMUNITY_URL = "${CANONICAL}";`));
   });
 
   it('no other Discord invite ships anywhere in the repo', () => {

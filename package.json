@@ -1,7 +1,8 @@
 {
   "name": "anotifier",
   "version": "1.7.1",
-  "description": "Desktop & phone notifications for AI coding agents in VS Code and CLI. Supports Claude Code, Codex, Gemini CLI, Antigravity CLI, and Cursor with toast alerts and ntfy push notifications.",
+  "private": true,
+  "description": "Desktop & phone notifications for AI coding agents. Internal fork of DevinoSolutions/anotifier-for-claude-codex-cursor: Windows notifications are Donetoast cards, and setup makes no network request.",
   "type": "module",
   "bin": {
     "anotifier": "cli/index.mjs"
@@ -40,9 +41,9 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor.git"
+    "url": "git+https://github.com/yerxio/agent-anotifier.git"
   },
-  "homepage": "https://anotifier.io",
+  "homepage": "https://github.com/yerxio/agent-anotifier#readme",
   "funding": {
     "type": "github",
     "url": "https://github.com/sponsors/DevinoSolutions"

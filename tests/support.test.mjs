@@ -31,8 +31,11 @@ describe('src/support.mjs', () => {
     assert.equal(DOCS_URL, 'https://anotifier.io/docs/');
   });
 
-  it('STAR_URL is the package.json repository as a plain https repo URL', () => {
-    assert.equal(STAR_URL, pkg.repository.url.replace(/^git\+/, '').replace(/\.git$/, ''));
+  it('STAR_URL is the upstream repository, not this fork', () => {
+    // package.json names the fork; the star ask is for the project other
+    // developers can find and install, which is upstream's.
+    assert.equal(STAR_URL, 'https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor');
+    assert.notEqual(STAR_URL, pkg.repository.url.replace(/^git\+/, '').replace(/\.git$/, ''));
     assert.match(STAR_URL, /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+$/);
     assert.ok(!STAR_URL.endsWith('.git'), STAR_URL);
   });

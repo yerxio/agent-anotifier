@@ -1,6 +1,9 @@
 # Contributing
 
-Contributions are welcome.
+This repository is an internal fork of
+[DevinoSolutions/anotifier-for-claude-codex-cursor](https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor).
+Changes to anotifier itself belong upstream; what follows is how to work on
+this fork.
 
 ## Before You Start
 
@@ -14,14 +17,13 @@ Clone the repo. There is nothing to install: the project has no dependencies at
 all, production or dev — it runs on Node.js >= 18 built-ins and the test runner
 built into Node.
 
-The commands for running the suites are in the README's
-[Run it yourself](README.md#run-it-yourself) section.
+`npm link` in the clone puts the `anotifier` command on your PATH. The commands
+for running the suites are in the README's [Testing](README.md#testing)
+section.
 
-The website (anotifier.io) is the one exception: its source is in `landing/`
-and has its own `package.json`. See the README's [Website](README.md#website)
-section for how to run and check it. Site facts (commands, config keys,
-defaults) must match this package exactly — the Honesty Rule below applies to
-`landing/lib/docs.ts` as much as to the README.
+The hooks `anotifier setup` writes point at the clone itself, so an edit under
+`src/` or `assets/` changes your own notifications on the next agent turn. Run
+the tests before you rely on a change.
 
 ## Before Opening a Pull Request
 
@@ -32,7 +34,7 @@ npm test
 ```
 
 It must pass. If you changed platform behavior, say which platform you actually
-exercised it on; CI runs Linux, macOS, and Windows.
+exercised it on.
 
 ## The Honesty Rule
 

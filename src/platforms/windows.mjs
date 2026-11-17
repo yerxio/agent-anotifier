@@ -168,8 +168,8 @@ export async function sendToast(notification, deps = {}) {
   }
 
   // Notifications render as donetoast's persistent card, with an explicit
-  // acknowledgement button. Everything else — the statusline alerts, and every
-  // tool when `toast.cards` is off — keeps the native-toast path below.
+  // acknowledgement button. The native-toast path below is what is left when
+  // `toast.cards` is off or the card bundle is missing.
   if (wantsCard(notification)) {
     return sendDonetoast(notification, { execFileImpl, log, ...soundDeps });
   }

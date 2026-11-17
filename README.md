@@ -13,53 +13,37 @@
   <img src="assets/icons/vscode.png" alt="VS Code" width="36" />
 </p>
 
-<p align="center">
-  <a href="https://anotifier.io"><strong>anotifier.io</strong></a>
-  &nbsp;·&nbsp;
-  <a href="https://anotifier.io/docs/"><strong>Documentation</strong></a>
-  &nbsp;·&nbsp;
-  <a href="https://discord.gg/CWDxfEJGcS"><strong>Discord</strong></a>
-  &nbsp;·&nbsp;
-  <a href="https://github.com/sponsors/DevinoSolutions"><strong>Support the project</strong></a>
-</p>
-
-<p align="center">
-  <a href="https://anotifier.io"><img src="https://img.shields.io/badge/website-anotifier.io-6c5ce7" alt="anotifier.io" /></a>
-  <a href="https://www.npmjs.com/package/anotifier"><img src="https://img.shields.io/npm/v/anotifier?color=cb3837&label=npm" alt="npm version" /></a>
-  <a href="https://www.npmjs.com/package/anotifier"><img src="https://img.shields.io/npm/dm/anotifier?color=blue" alt="npm downloads" /></a>
-  <a href="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/unit.yml"><img src="https://img.shields.io/github/actions/workflow/status/DevinoSolutions/anotifier-for-claude-codex-cursor/unit.yml?branch=main&label=tests" alt="Unit tests" /></a>
-  <a href="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License: AGPL-3.0" /></a>
-  <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D18-brightgreen" alt="Node.js >= 18" /></a>
-  <img src="https://img.shields.io/badge/dependencies-zero-success" alt="Zero Dependencies" />
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white" alt="Windows" />
-  <img src="https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white" alt="macOS" />
-  <img src="https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black" alt="Linux" />
-  <img src="https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android" />
-  <img src="https://img.shields.io/badge/iOS-000000?style=flat-square&logo=ios&logoColor=white" alt="iOS" />
-</p>
-
-<p align="center">
-  <img src="assets/media/hero.png" alt="Desktop toasts on the laptop and ntfy push notifications on the phone — Claude Code task complete, Codex needs input, Cursor agent finished" width="660" />
-</p>
-
 ---
 
-## Demo
+## About this repository
 
-https://github.com/user-attachments/assets/5714b528-7e04-478e-abfd-2a3d05db562c
+This is a fork of [DevinoSolutions/anotifier-for-claude-codex-cursor](https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor), modified for internal use. It is **not published to npm** and is used straight from a clone.
 
-[Watch with sound on YouTube](https://www.youtube.com/watch?v=QVVOIIud4-I)
+`npx anotifier` and `npm i -g anotifier` install the upstream package, which has none of the changes below. To use this fork, follow [Quick Start](#quick-start).
+
+What differs from upstream:
+
+- **Windows desktop notifications are Donetoast cards**, not native toasts: a persistent card with a `知道了` button, in one size and five states. The card scripts are vendored under `assets/windows/donetoast/`.
+- **Windows needs nothing installed.** No PowerShell 7, no BurntToast module: cards and the terminal bell both run on the Windows PowerShell 5.1 that ships with the system.
+- **Setup makes no network request.** The icons ship in the repository instead of being downloaded.
+- **The update check is off by default**, and while it is off no command contacts the npm registry.
+- **The Windows terminal bell works.** Upstream's script threw on every run.
+- No click-to-focus on Windows: a card can only be dismissed.
+
+macOS, Linux and WSL behave as upstream does.
 
 ## Quick Start
 
 ```bash
-npx anotifier@latest setup
+git clone https://github.com/yerxio/agent-anotifier.git
+cd agent-anotifier
+npm link          # puts the `anotifier` command on your PATH, pointing at this clone
+anotifier setup
 ```
 
-That's it. The setup wizard detects your platform and installed AI tools, wires the hooks, and optionally configures phone push notifications. Restart your AI tools to activate.
+The setup wizard detects your platform and installed AI tools, wires the hooks, and optionally configures phone push notifications. Restart your AI tools to activate.
+
+The hooks it writes point at this clone's `src/notify.mjs`, so keep the folder where it is, and note that the code on disk is the code that runs: `git pull` updates it, and checking out another branch changes what your notifications do. There are no runtime dependencies, so `npm link` installs nothing.
 
 ## Features
 
@@ -136,39 +120,7 @@ Claude Code, Codex, and Cursor all run inside VS Code. **anotifier** hooks direc
 
 ## Installation
 
-### npm (recommended)
-
-```bash
-# One-shot setup (no install needed)
-npx anotifier@latest setup
-
-# Or install globally
-npm i -g anotifier
-anotifier setup
-```
-
-### Claude Code Plugin
-
-Add the marketplace, then install the plugin from it:
-
-```
-/plugin marketplace add DevinoSolutions/anotifier-for-claude-codex-cursor
-/plugin install anotifier@anotifier
-```
-
-Hooks auto-register. Use `/anotifier:setup` to wire other tools.
-
-### Standalone (no npm)
-
-**Windows (PowerShell):**
-```powershell
-irm https://raw.githubusercontent.com/DevinoSolutions/anotifier-for-claude-codex-cursor/main/setup/install.ps1 | iex
-```
-
-**macOS / Linux:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/DevinoSolutions/anotifier-for-claude-codex-cursor/main/setup/install.sh | bash
-```
+This fork is used from a clone, through `npm link`; see [Quick Start](#quick-start). To update, `git pull` in the clone. To stop using it, run `anotifier uninstall` and then `npm unlink -g anotifier`.
 
 ## CLI Commands
 
@@ -200,6 +152,7 @@ Config lives at `~/.anotifier/config.json`. Abbreviated — see [config/default-
   },
   "toast": {
     "enabled": true,
+    "cards": true,
     "clickToFocus": true
   },
   "terminalBell": {
@@ -249,7 +202,7 @@ Config lives at `~/.anotifier/config.json`. Abbreviated — see [config/default-
 }
 ```
 
-`ntfy.click` is the URL opened when you tap a phone notification (empty = no link). `ntfy.fallbackServer` (optional, 1.7.0 and later) is a second ntfy server for the same topic: when `ntfy.server` fails (unreachable, a timeout, or an error such as a 429 daily limit), the same push is sent there once instead. For example, run your own server as `server` and keep `https://ntfy.sh` as the fallback, then subscribe your phone to the topic on both. With a fallback set, each attempt waits at most 3 s instead of 5 s, so both fit in the hook's time budget. If the main server accepts a push but answers too slowly, the fallback sends it too and a phone subscribed on both servers buzzes twice; a missed push is the worse failure. `anotifier test ntfy` says when only the fallback delivered. `terminalBell` rings the terminal that launched the agent -- for Claude Code (>=2.1.141) it rings through Claude Code's own terminal write path (hook JSON `terminalSequence`), which is safe in tmux, GNU screen, and on Windows per Claude Code's docs; other agents get a direct TTY/console bell. `webhook` posts to Slack, Discord, Telegram, or any URL (see below). `sentry` is opt-in error reporting (see [Error visibility](#error-visibility)). `updateCheck` is off by default, and while it is off anotifier never contacts the npm registry: not from a hook, and not from `anotifier status`, `--version` or any other command. Set `enabled` to `true` to be told about a newly published anotifier -- through whichever of your toast / ntfy / webhook channels are already on (never the terminal bell), and as a line under the CLI's output. It then asks the registry at most once per day, tells you at most once per version, and stays silent on any error. `telemetry` (1.3.0 and later) is the opt-in anonymous usage-stats choice: `enabled` is the choice (default `false`), and `asked` records that you made it (`setup` and `anotifier telemetry on|off` set it) so re-running setup does not ask again -- see [Usage stats](#usage-stats). `usageAlerts` warns before a Claude Code usage limit (see [Usage-limit warnings](#usage-limit-warnings-claude-code)): `enabled` turns it off, `thresholds` are the percentages (1-100) that trigger a warning. `contextAlerts` warns once per chat before Claude Code auto-compacts it (see [Context warnings](#context-warnings-claude-code)): `enabled` turns it off, `threshold` is the percentage (1-100) of the auto-compact window that triggers it. `quietHours` is a recurring nightly version of `snooze` (see [Quiet hours](#quiet-hours)). Per-event `toastSound` is a sound name or the path of your own audio file (see [Custom sound files](#custom-sound-files)). A name is a Windows notification sound (`Default`, `IM`, `Mail`, `Reminder`, `SMS`, `Alarm`), played by [BurntToast](https://github.com/Windos/BurntToast) for a native toast and by the card itself for a Donetoast card, which looks up the file Windows has assigned to that name; a card plays it once, even a looping one like `Alarm`, because it stays on screen until it is clicked, and falls back to its own chime when the name is unknown; on macOS it is mapped to the closest built-in system sound (Windows names like `IM`/`Reminder` are translated, and `Default` or unrecognized names fall back to the system default), while on Linux a name is ignored; `priority` (`min` / `low` / `default` / `high` / `urgent`) drives both the ntfy push priority and the Linux `notify-send` urgency.
+`ntfy.click` is the URL opened when you tap a phone notification (empty = no link). `ntfy.fallbackServer` (optional, 1.7.0 and later) is a second ntfy server for the same topic: when `ntfy.server` fails (unreachable, a timeout, or an error such as a 429 daily limit), the same push is sent there once instead. For example, run your own server as `server` and keep `https://ntfy.sh` as the fallback, then subscribe your phone to the topic on both. With a fallback set, each attempt waits at most 3 s instead of 5 s, so both fit in the hook's time budget. If the main server accepts a push but answers too slowly, the fallback sends it too and a phone subscribed on both servers buzzes twice; a missed push is the worse failure. `anotifier test ntfy` says when only the fallback delivered. `terminalBell` rings the terminal that launched the agent -- for Claude Code (>=2.1.141) it rings through Claude Code's own terminal write path (hook JSON `terminalSequence`), which is safe in tmux, GNU screen, and on Windows per Claude Code's docs; other agents get a direct TTY/console bell. `webhook` posts to Slack, Discord, Telegram, or any URL (see below). `sentry` is opt-in error reporting (see [Error visibility](#error-visibility)). `updateCheck` is off by default, and while it is off anotifier never contacts the npm registry: not from a hook, and not from `anotifier status`, `--version` or any other command. Set `enabled` to `true` to be told about a newly published anotifier -- through whichever of your toast / ntfy / webhook channels are already on (never the terminal bell), and as a line under the CLI's output. It then asks the registry at most once per day, tells you at most once per version, and stays silent on any error. `telemetry` (1.3.0 and later) is the opt-in anonymous usage-stats choice: `enabled` is the choice (default `false`), and `asked` records that you made it (`setup` and `anotifier telemetry on|off` set it) so re-running setup does not ask again -- see [Usage stats](#usage-stats). `usageAlerts` warns before a Claude Code usage limit (see [Usage-limit warnings](#usage-limit-warnings-claude-code)): `enabled` turns it off, `thresholds` are the percentages (1-100) that trigger a warning. `contextAlerts` warns once per chat before Claude Code auto-compacts it (see [Context warnings](#context-warnings-claude-code)): `enabled` turns it off, `threshold` is the percentage (1-100) of the auto-compact window that triggers it. `quietHours` is a recurring nightly version of `snooze` (see [Quiet hours](#quiet-hours)). `toast.cards` (Windows only, default `true`) makes every desktop notification a Donetoast card; `false` uses native toasts through BurntToast instead, and is ignored on macOS, Linux and WSL. `toast.clickToFocus` applies to native toasts only: with cards on it does nothing on Windows, because a card can only be dismissed. Per-event `toastSound` is a sound name or the path of your own audio file (see [Custom sound files](#custom-sound-files)). A name is a Windows notification sound (`Default`, `IM`, `Mail`, `Reminder`, `SMS`, `Alarm`), played by [BurntToast](https://github.com/Windos/BurntToast) for a native toast and by the card itself for a Donetoast card, which looks up the file Windows has assigned to that name; a card plays it once, even a looping one like `Alarm`, because it stays on screen until it is clicked, and falls back to its own chime when the name is unknown; on macOS it is mapped to the closest built-in system sound (Windows names like `IM`/`Reminder` are translated, and `Default` or unrecognized names fall back to the system default), while on Linux a name is ignored; `priority` (`min` / `low` / `default` / `high` / `urgent`) drives both the ntfy push priority and the Linux `notify-send` urgency.
 
 ### Quiet hours
 
@@ -529,7 +482,7 @@ A hook run whose working folder is `~/work/acme`, or anything inside it, uses th
 
 ### Error visibility
 
-Hook and channel errors never interrupt your agent -- they're appended to `~/.anotifier/errors.log` and surfaced by `npx anotifier status`, so a misconfigured toast backend or unreachable ntfy topic shows up as a logged error instead of a silent no-op. Set `sentry.enabled` to `true` (with a `sentry.dsn`) to also mirror those errors to [Sentry](https://sentry.io) through a built-in, zero-dependency envelope client: no SDK is bundled, nothing leaves your machine unless you opt in, and only error data is sent.
+Hook and channel errors never interrupt your agent -- they're appended to `~/.anotifier/errors.log` and surfaced by `anotifier status`, so a misconfigured toast backend or unreachable ntfy topic shows up as a logged error instead of a silent no-op. Set `sentry.enabled` to `true` (with a `sentry.dsn`) to also mirror those errors to [Sentry](https://sentry.io) through a built-in, zero-dependency envelope client: no SDK is bundled, nothing leaves your machine unless you opt in, and only error data is sent.
 
 ### Usage stats
 
@@ -615,7 +568,7 @@ Hook fires (stdin JSON + --source flag)
 | Requirement | Details |
 |-------------|---------|
 | **Node.js** | >= 18.0.0 (already present for all supported AI tools) |
-| **Windows** | Nothing extra (Windows PowerShell 5.1, built-in). PowerShell 7+ only if `toast.cards` is `false` |
+| **Windows** | Nothing extra: cards and the terminal bell run on the built-in Windows PowerShell 5.1. PowerShell 7+ is needed only for native toasts (`toast.cards: false`) and for a custom sound file that is not a `.wav` |
 | **macOS** | osascript (built-in) |
 | **Linux** | notify-send (optional, for desktop toasts) |
 
@@ -629,137 +582,27 @@ Removes all managed hooks from every tool's config. Original configs are backed 
 
 ## Testing
 
-Everything below is verified against the **real thing** — no mocks, no stubs, no fakes. Real ntfy.sh push delivery, a real Linux notification daemon receiving the exact payload, the real agent CLIs installed from npm and driven end to end, and the real native OS toast backends firing — then **read back out of the OS's own notification store** (`dunst` on Linux, Notification Center's database on macOS, `wpndatabase.db` on Windows) to prove the payload actually landed, not just that the call returned 0. Every job is **required** and **hard-fails**: a broken key, a renamed secret, or a hook that doesn't deliver turns CI red instead of skipping silently.
-
-### What CI verifies on every run — all real, all platforms
-
-Each job runs as its own GitHub Actions workflow. The badge in every row is its **live status on `main`** — not a screenshot — so click any badge to see the actual run and its per-test logs.
-
-<table>
-  <thead>
-    <tr>
-      <th>Job</th>
-      <th align="center" width="180">Live status</th>
-      <th>Platforms</th>
-      <th>What is actually exercised (no mocks)</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><strong>Unit</strong></td>
-      <td align="center"><a href="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/unit.yml"><img src="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/unit.yml/badge.svg?branch=main" alt="Unit" /></a></td>
-      <td>Linux · macOS · Windows</td>
-      <td>The full unit + integration suite against the real exported code (not inline copies)</td>
-    </tr>
-    <tr>
-      <td><strong>E2E real-world</strong></td>
-      <td align="center"><a href="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/e2e.yml"><img src="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/e2e.yml/badge.svg?branch=main" alt="E2E" /></a></td>
-      <td>Linux · macOS · Windows</td>
-      <td>Real <code>setup</code>/<code>uninstall</code> subprocesses against an isolated HOME · real <code>notify.mjs</code> hook invocation per source · <strong>real ntfy.sh round-trip</strong> (push sent, then read back off the server)</td>
-    </tr>
-    <tr>
-      <td><strong>Install + smoke-load</strong></td>
-      <td align="center"><a href="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/agents.yml"><img src="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/agents.yml/badge.svg?branch=main" alt="Agents" /></a></td>
-      <td>Linux · macOS · Windows</td>
-      <td>Installs the <strong>real</strong> Claude, Codex, Gemini (and Cursor where available) CLIs from npm, asserts they launch, and smoke-loads each hook (Codex classification pinned — drift fails CI)</td>
-    </tr>
-    <tr>
-      <td><strong>Live Claude</strong></td>
-      <td align="center"><a href="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/live-claude.yml"><img src="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/live-claude.yml/badge.svg?branch=main" alt="Live Claude" /></a></td>
-      <td>Linux · macOS</td>
-      <td>Drives the <strong>real</strong> Claude CLI end to end (on our proxy when its key is set, else a real Anthropic key); <strong>hard-fails</strong> if the Stop hook doesn't deliver a real ntfy push · on macOS it also does a <strong>best-effort</strong> Notification Center read-back (logged, non-blocking — the hard osascript→NC delivery proof is the dedicated Toast macOS lane)</td>
-    </tr>
-    <tr>
-      <td><strong>Live Gemini</strong></td>
-      <td align="center"><a href="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/live-gemini.yml"><img src="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/live-gemini.yml/badge.svg?branch=main" alt="Live Gemini" /></a></td>
-      <td>Linux · macOS</td>
-      <td>Drives the <strong>real</strong> Gemini CLI end to end; <strong>hard-fails</strong> if the hook doesn't deliver a real ntfy push · on macOS it also does a <strong>best-effort</strong> Notification Center read-back (logged, non-blocking — the hard NC delivery proof is the dedicated Toast macOS lane)</td>
-    </tr>
-    <tr>
-      <td><strong>Live Codex</strong></td>
-      <td align="center"><a href="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/live-codex.yml"><img src="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/live-codex.yml/badge.svg?branch=main" alt="Live Codex" /></a></td>
-      <td>Linux · macOS</td>
-      <td>Validates <code>OPENAI_API_KEY</code> against the <strong>live OpenAI API</strong>, boots the real Codex config + PermissionRequest hook wiring, and drives a <strong>real completed <code>codex exec</code> turn</strong> (asserts it echoes a unique token) ¹</td>
-    </tr>
-    <tr>
-      <td><strong>Live Cursor</strong></td>
-      <td align="center"><a href="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/live-cursor.yml"><img src="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/live-cursor.yml/badge.svg?branch=main" alt="Live Cursor" /></a></td>
-      <td>Linux</td>
-      <td>Validates the real Cursor config-patch wiring (BYO key) ¹</td>
-    </tr>
-    <tr>
-      <td><strong>TUI Proofs</strong></td>
-      <td align="center"><a href="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/tui-proofs.yml"><img src="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/tui-proofs.yml/badge.svg?branch=main" alt="TUI Proofs" /></a></td>
-      <td>macOS</td>
-      <td>Drives the <strong>real</strong> Claude and Codex TUIs in a live <code>tmux</code> session. <strong>F1</strong>: the Claude terminal <strong>bell</strong> sets tmux's <code>window_bell_flag</code>. <strong>F2</strong>: a <strong>real Codex approval modal</strong> appears, our PermissionRequest notification fires, we approve via send-keys, and the guarded command runs — the full approval decision loop that <code>codex exec</code> structurally can't exercise</td>
-    </tr>
-    <tr>
-      <td><strong>Live Toast Linux</strong></td>
-      <td align="center"><a href="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/toast-linux.yml"><img src="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/toast-linux.yml/badge.svg?branch=main" alt="Toast Linux" /></a></td>
-      <td>Linux</td>
-      <td>Fires through the real <code>notify-send</code> backend into a <strong>real <code>dunst</code> daemon</strong>, then reads its history and asserts it captured the exact title + body — and goes one layer further, proving the notification is <strong>rendered on-screen</strong>: it captures the X display and reads the banner's text back with OCR (nonce present in a during-display frame, absent from the pre-fire frame) ²</td>
-    </tr>
-    <tr>
-      <td><strong>Live Toast macOS</strong><br/>(delivery capture)</td>
-      <td align="center"><a href="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/toast-macos.yml"><img src="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/toast-macos.yml/badge.svg?branch=main" alt="Toast macOS" /></a></td>
-      <td>macOS</td>
-      <td>Fires the <strong>real</strong> <code>osascript</code> backend, then <strong>reads the delivery back out of Notification Center's own SQLite DB</strong> and asserts the exact payload was recorded — so it fails when a real user would have seen nothing (the silent-drop an exit-code check misses). Also runs <code>anotifier doctor --deep</code> as an independent second check</td>
-    </tr>
-    <tr>
-      <td><strong>Live Toast Native</strong></td>
-      <td align="center"><a href="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/toast-native.yml"><img src="https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/actions/workflows/toast-native.yml/badge.svg?branch=main" alt="Toast Native" /></a></td>
-      <td>Windows</td>
-      <td>Fires the <strong>real</strong> BurntToast backend, then <strong>reads the notification back out of the Windows notification platform's own store</strong> (<code>wpndatabase.db</code>) and asserts the exact nonce was recorded in the toast's title <strong>and</strong> body — so it fails when a real user would have seen nothing (the silent-drop an exit-code check misses) ³</td>
-    </tr>
-  </tbody>
-</table>
-
-¹ The Live Codex lane completes a real `codex exec` turn, but non-interactive exec structurally can't exercise the **approval decision loop** — with no TTY, codex forces `approval: never` + a read-only sandbox, so the PermissionRequest hook never fires. That loop is proven end to end by the **TUI Proofs** lane (F2), which drives the interactive TUI. Cursor is a GUI editor (BYO key), so its lane validates the live key + real config wiring; its hook **delivery** is fully covered by the unit + e2e suites.
-
-² The on-screen render proof draws the banner with **our** tuned `dunstrc` (large mono font, high contrast) on a **virtual** X display (Xvfb), so it proves the product path renders legible, machine-readable pixels — not that every user's desktop theme renders identically. macOS has no equivalent lane: on the hosted runner a real notification records in Notification Center but never presents a banner, and the accessibility/screen-capture routes are walled off by TCC, so **layer 2 (recorded in Notification Center) is the honest macOS CI ceiling** — on-screen rendering there is a real-machine concern (`npm run toast:demo`), while `anotifier doctor --deep` verifies real **delivery** on your own machine by reading that same Notification Center database back. See [`docs/research/2026-07-15-layer3-render-proof.md`](docs/research/2026-07-15-layer3-render-proof.md).
-
-³ Like macOS, Windows is proven to **layer 2** in CI: the hosted `windows-latest` runner is a headless Session-0 environment with no interactive desktop, so the toast is **recorded** by the Windows notification platform but no banner is presented on a screen. The gate reads the record back out of `wpndatabase.db` (WAL-aware — a freshly fired toast lives in the DB's write-ahead log, so an `immutable=1` open would miss it and falsely report absence) and asserts the exact nonce in the title and body. On-screen rendering is a real-machine concern; for it `anotifier doctor` runs a **static backend check** (PowerShell + BurntToast + execution-policy state) — Windows has no delivery-record read-back in `--deep`, unlike macOS (Notification Center DB) and Linux (`dunst` history). See [`docs/research/2026-07-15-layer3-render-proof.md`](docs/research/2026-07-15-layer3-render-proof.md).
-
-**WSL** has no row above on purpose. WSL toast routing (PowerShell interop across the `/mnt/c` boundary) is unit-tested for detection and interop invocation (`tests/platforms-wsl.test.mjs`, fully deps-injected), but a hosted CI runner cannot host both a WSL guest and an interactive Windows desktop to prove a toast crosses the boundary and lands — so, matching how the Codex `exec` lane doesn't claim the approval-decision loop (¹), that end-to-end delivery is deliberately **not** asserted here.
-
-### Run it yourself
-
 ```bash
 npm test            # offline: the full unit + integration suite
-npm run test:e2e    # real ntfy.sh round-trip, needs network
-npm run toast:demo  # fire real desktop toasts, every event
+npm run test:e2e    # real subprocesses and a real ntfy.sh round-trip, needs network
+npm run toast:demo  # fire real desktop notifications, every event
 ```
 
-### The one thing CI can't prove
+`npm test` runs offline and covers every platform's backend through injected process spawners; the PowerShell scripts are also parsed for syntax errors when PowerShell 7 is available. `npm run test:e2e` runs the real `setup`, `uninstall` and hook subprocesses against a throwaway home directory.
 
-CI goes further than "the call returned 0." On **Linux** it reads the payload back out of a real `dunst` daemon **and** captures the X display to OCR the banner's text off the screen — pixels, not just a database row. On **macOS** it reads the delivery back out of Notification Center's own database, and on **Windows** out of the notification platform's `wpndatabase.db` — so a notification that was silently dropped for lack of permission records nothing and turns CI **red** instead of green. What no headless runner can prove is the last millimetre: a human's eyes actually seeing the banner. On macOS and Windows the on-screen banner can't be captured in CI at all (the hosted runner records the notification but never presents it — layer 2 is the ceiling ² ³), and everywhere Do Not Disturb / Focus can suppress the on-screen banner while the notification is still recorded as delivered. So "reached the notification store" is not always "a person saw it." To confirm with your own eyes — and to check your own machine's notification setup — run `npm run toast:demo` and `anotifier doctor --deep`. `--deep` fires a real test notification and reads it back where the OS allows: on **macOS** from Notification Center's database, on **Linux** from the `dunst` daemon's history (where `dunstctl` is present; other daemons honestly report dispatched-but-unverified). On **Windows**, `anotifier doctor` runs a static backend check (PowerShell + BurntToast + execution-policy).
+The Windows card is drawn by its own WPF window, not by the Windows notification platform, so no automated check reads it back from a system store. What the tests cover is the command anotifier spawns and the card scripts' behaviour; whether a card appeared on screen is checked by eye with `npm run toast:demo` or `anotifier test toast`.
 
-## Website
-
-The source of [anotifier.io](https://anotifier.io) ([docs](https://anotifier.io/docs/), [guides](https://anotifier.io/guides/), [comparison page](https://anotifier.io/compare/), [`llms.txt`](https://anotifier.io/llms.txt)) lives in [`landing/`](landing/) — a static Next.js export, so a fix to the site is a normal PR here. The site asks before it loads any analytics: PostHog, Google Analytics and Sentry load only after a visitor accepts, and [anotifier.io/privacy](https://anotifier.io/privacy/) describes what they collect. It is not part of the npm package.
-
-```bash
-cd landing && npm ci
-npm run dev            # local preview
-npm run lint && npm run format:check && npm run knip && npm run typecheck && npm run build
-```
-
-The `Landing` workflow runs those same checks on every PR that touches `landing/`; merging to `main` deploys the site.
+The GitHub workflows in `.github/workflows/` come from upstream. Several need upstream's secrets or its hosted agents and do not pass in this fork; `Unit` and `E2E` are the ones that describe this repository.
 
 ## Community
 
-Questions, a notification that never arrived, an agent or channel you want
-supported? Ask in the [anotifier Discord](https://discord.gg/CWDxfEJGcS).
-`anotifier --help` prints the same invite, and `anotifier doctor` points there
-whenever a check warns or fails.
+This fork has no community of its own. Upstream's is the [anotifier Discord](https://discord.gg/CWDxfEJGcS): `anotifier --help` prints that invite, and `anotifier doctor` points there whenever a check warns or fails. It is the place for questions about anotifier in general, not about the changes made here.
 
-## Support the project
+## Upstream
 
-anotifier is free, open source, and has no account and no paid tier. Version 1.3.0 and later add opt-in [usage stats](#usage-stats); with them off (the default unless you answer Yes at an interactive `setup`), nothing is collected. It is built and maintained by [DevinoSolutions](https://github.com/DevinoSolutions). If it saves you time, consider supporting its development: **[github.com/sponsors/DevinoSolutions](https://github.com/sponsors/DevinoSolutions)**. The same link is printed once at the end of `anotifier setup` and `anotifier status`; it never appears in a notification or on the hook path. A successful `setup` also ends with one line asking for a [GitHub star](https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor), since that is how other developers find the project. That line is printed nowhere else.
+anotifier is written and maintained by [DevinoSolutions](https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor), which is where to send contributions to the project itself and where its documentation and website live ([anotifier.io](https://anotifier.io)). If it saves you time, [support the upstream project](https://github.com/sponsors/DevinoSolutions).
 
-## Contributing
-
-Contributions are welcome. Please open an issue first to discuss what you'd like to change — see [CONTRIBUTING.md](CONTRIBUTING.md). For a quicker chat about an idea, find us in the [Discord](https://discord.gg/CWDxfEJGcS).
+The Windows card is [donetoast](https://github.com/siiplasplas/donetoast) by siiplasplas, MIT; what was changed in the vendored copy is recorded in `assets/windows/donetoast/README.md`.
 
 ## Changelog
 

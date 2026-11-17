@@ -20,7 +20,10 @@ const require = createRequire(import.meta.url);
 const pkg = require('../package.json');
 
 export const UPDATE_TTL_MS = 24 * 60 * 60 * 1000;
-export const UPGRADE_COMMAND = 'npm i -g anotifier@latest';
+// This fork runs from a clone and is not on npm: the check watches UPSTREAM's
+// releases, and `npm i -g anotifier` would install upstream's package, without
+// this fork's changes. So the hint names the real way to get a release.
+export const UPGRADE_COMMAND = 'merge the upstream release into your clone';
 export const RELEASES_URL = 'https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor/releases/latest';
 
 const CACHE_PATH = path.join(getConfigDir(), '.update-check.json');
@@ -197,7 +200,7 @@ export function sendUpdateNotification(config, { latest, currentVersion }, {
 } = {}) {
   const notification = {
     title: `anotifier v${latest} available`,
-    message: `You have v${currentVersion} — update with: ${UPGRADE_COMMAND}`,
+    message: `You have v${currentVersion} — ${UPGRADE_COMMAND}`,
     toastSound: 'Default',
     // A version nag must never outrank a real agent event: 'low' stays quiet on
     // the phone and maps to notify-send's low urgency on Linux.

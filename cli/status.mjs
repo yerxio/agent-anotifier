@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 import { loadConfigResult } from '../src/config-loader.mjs';
 import { readRecentHookErrors, getErrorLogPath } from '../src/error-log.mjs';
 import { detectManagedEvents, detectAntigravityEvents, isOurStatusline, TURN_START_EVENTS } from '../setup/patch-config.mjs';
-import { checkForUpdate, isNewer } from '../src/update-check.mjs';
+import { checkForUpdate, isNewer, UPGRADE_COMMAND } from '../src/update-check.mjs';
 import { readSnoozeUntil, quietHoursWindow, inQuietHours, formatClock } from '../src/suppress.mjs';
 import { effectiveThresholds } from '../src/usage-alert.mjs';
 import { effectiveContextThreshold } from '../src/context-alert.mjs';
@@ -215,7 +215,7 @@ export async function run() {
   if (latest && isNewer(latest, pkg.version)) {
     console.log();
     console.log(`  ${c.warn('↑')} ${c.warn(`Update available: v${pkg.version} → v${latest}`)}`);
-    console.log(`    ${c.muted('npm i -g anotifier@latest')}`);
+    console.log(`    ${c.muted(UPGRADE_COMMAND)}`);
   }
 
   // Gentle, one-line ask at the very end of the command people run most.

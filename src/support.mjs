@@ -13,16 +13,13 @@ const pkg = require('../package.json');
 export const SUPPORT_URL = pkg.funding?.url ?? 'https://github.com/sponsors/DevinoSolutions';
 export const DOCS_URL = 'https://anotifier.io/docs/';
 
-// The anotifier Discord: where to ask for help. A permanent, unlimited invite;
-// landing/lib/site.ts repeats it for the website (tests/community.test.mjs pins
-// the two together).
+// The upstream anotifier Discord: where to ask for help. A permanent, unlimited invite.
 export const COMMUNITY_URL = 'https://discord.gg/CWDxfEJGcS';
 
-// The repo page, derived from package.json `repository.url`
-// ("git+https://github.com/o/r.git" → "https://github.com/o/r").
-export const STAR_URL = String(pkg.repository?.url ?? 'https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor')
-  .replace(/^git\+/, '')
-  .replace(/\.git$/, '');
+// The UPSTREAM repo page. Deliberately not package.json `repository.url`, which
+// names this fork: a star is asked for the project other developers can find
+// and install, and that is upstream's.
+export const STAR_URL = 'https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor';
 
 // One sentence, reused verbatim by setup and status so the ask reads the same
 // everywhere and stays easy to grep for.

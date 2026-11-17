@@ -7,7 +7,7 @@
   "metadata": {
     "description": "Desktop & phone notifications for AI coding agents in VS Code and CLI",
     "version": "1.7.1",
-    "homepage": "https://anotifier.io"
+    "homepage": "https://github.com/yerxio/agent-anotifier#readme"
   },
   "plugins": [{
     "name": "anotifier",
@@ -15,8 +15,8 @@
     "description": "Desktop & phone notifications for AI coding agents. Supports Claude Code, Codex, Gemini CLI, Antigravity CLI, and Cursor with toast alerts and ntfy push.",
     "version": "1.7.1",
     "author": { "name": "DevinoSolutions" },
-    "repository": "https://github.com/DevinoSolutions/anotifier-for-claude-codex-cursor",
-    "homepage": "https://anotifier.io",
+    "repository": "https://github.com/yerxio/agent-anotifier",
+    "homepage": "https://github.com/yerxio/agent-anotifier#readme",
     "license": "AGPL-3.0-or-later",
     "keywords": ["notifications", "claude-code", "codex", "gemini-cli", "cursor", "vscode", "ai-agent", "ai-coding", "coding-agent", "toast", "ntfy", "push-notifications", "desktop-notifications", "hooks", "developer-tools", "cross-platform", "cli", "productivity"],
     "category": "productivity",

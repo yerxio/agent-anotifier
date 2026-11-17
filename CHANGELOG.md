@@ -6,6 +6,37 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and the
 
 ## [Unreleased]
 
+### Fork changes
+
+Everything in this section is specific to this fork
+([yerxio/agent-anotifier](https://github.com/yerxio/agent-anotifier)) and is not
+in upstream's releases. The fork is used from a clone through `npm link` and is
+not published to npm; `package.json` is marked `private`.
+
+#### Changed
+
+- **Windows desktop notifications are Donetoast cards.** Every desktop notification on Windows — each tool's "task complete" and "needs input", the usage-limit and context-window warnings, the update notice — is a persistent card with a `知道了` button instead of a native toast. One size (480×160), five states (`done`, `needs you`, `failed`, `info`, `warning`), the tool's own icon, the turn length in the header and a message that wraps to five lines. The card scripts are vendored from [donetoast](https://github.com/siiplasplas/donetoast) under `assets/windows/donetoast/`. New `toast.cards` (default `true`); `false` restores the native BurntToast path.
+- **A card plays the sound configured for the event.** `events.<event>.toastSound` names resolve through the user's Windows sound scheme; a `.wav` plays directly, other audio through `play-sound.ps1`. It plays once, the looping names included, and an unknown name falls back to the card's own chime.
+- **No click-to-focus on Windows with cards on.** A card can only be dismissed. `toast.clickToFocus` still applies to native toasts.
+- **Setup installs nothing on Windows.** No PowerShell 7 probe and no BurntToast install unless `toast.cards` is `false` or the card bundle is missing. `doctor` checks the card backend instead of failing a machine that has no PowerShell 7.
+- **Setup makes no network request.** The fallback icon ships in the repository (`assets/icons/claude.png`) instead of being downloaded from claude.ai; Linux falls back to it too.
+- **The update check is off by default** (`updateCheck.enabled: false`), and the setting now covers the CLI as well as the hook: with it off, no command contacts the npm registry. When it is on it watches upstream's releases, and its hint names merging upstream rather than `npm i -g`.
+- `anotifier status` no longer breaks its box when a row is longer than the frame.
+
+#### Fixed
+
+- **`setup` hung after printing "Setup complete".** A failed icon download left its connection open, which kept the process alive; it also left an empty `icon.png` that stopped later runs from retrying. (The download itself is now gone.)
+- **The Windows terminal bell never rang.** `bell.ps1` passed `0xC0000000`, which PowerShell reads as a negative Int32, to a `UInt32` parameter and threw on every run; its fallback assigned to the read-only `$pid`; and it was spawned through `pwsh`, which is not on every machine. It now runs on the built-in Windows PowerShell. Affected Codex, Gemini and Cursor; Claude Code rings through its own terminal sequence.
+- **A Claude Code notice with nothing waiting on it read "needs you".** A background agent finishing or the usage limit lifting now shows as an `info` card.
+- The card no longer appends the text of every notification to a `toast.log` in its own directory.
+
+#### Removed
+
+- The website source (`landing/`) and its workflows, the release workflow that published to npm, and the `setup/install.sh` / `setup/install.ps1` bootstrappers, which ran `npx anotifier@latest` and so installed upstream's package rather than this fork.
+
+### Upstream, unreleased
+
+
 ### Added
 
 - **Why a channel failed, in the opt-in daily usage summary.** Each channel's `ok`/`fail` counts now come with a `reasons` count of the failures by a fixed category (`timeout`, `spawn_error`, `exit_nonzero`, `no_tty`, `http_4xx`, `http_5xx`, `network`, `unsupported`, `other`), so a toast that never appears can be told apart from a bell with no terminal. Only the category is counted, never a message, status code, exit code, path or URL; `ok` and `fail` are unchanged and nothing is sent unless usage stats are on.

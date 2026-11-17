@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // cli/index.mjs
 import { createRequire } from 'node:module';
-import { checkForUpdate, isNewer } from '../src/update-check.mjs';
+import { checkForUpdate, isNewer, UPGRADE_COMMAND } from '../src/update-check.mjs';
 import { COMMUNITY_URL, DOCS_URL, SUPPORT_URL } from '../src/support.mjs';
 import { track, flushTelemetry, clampIdent } from '../src/telemetry.mjs';
 
@@ -49,7 +49,7 @@ async function printUpdateBanner(c, updatePromise) {
   // Same guard maybeNotifyUpdate applies on the hook path.
   if (latest && isNewer(latest, pkg.version)) {
     console.log(`  ${c.warn('↑')} ${c.warn(`Update available: v${pkg.version} → v${latest}`)}`);
-    console.log(`    ${c.muted('npm i -g anotifier@latest')}\n`);
+    console.log(`    ${c.muted(UPGRADE_COMMAND)}\n`);
   }
 }
 

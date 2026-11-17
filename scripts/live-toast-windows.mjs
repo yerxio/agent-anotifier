@@ -86,6 +86,11 @@ async function main() {
     config,
   );
   notification.title = `${notification.title} ${marker}`;
+  // This lane reads the toast back out of the Windows notification store, which
+  // only the native BurntToast backend writes to. A Donetoast card (the default)
+  // draws its own window and never appears there, so the native path is asked
+  // for explicitly: this proves the `toast.cards: false` fallback.
+  notification.toastCards = false;
   console.log(`Firing via BurntToast: "${notification.title}" / "${notification.message}"`);
 
   const sent = await sendToast(notification);
