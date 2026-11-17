@@ -32,9 +32,13 @@ public static class Kernel32 {
 
 function Write-Bel {
     # GENERIC_READ | GENERIC_WRITE = 0xC0000000, FILE_SHARE_WRITE = 2, OPEN_EXISTING = 3
-    $handle = [Kernel32]::CreateFileW("CONOUT$", 0xC0000000, 2, [IntPtr]::Zero, 3, 0, [IntPtr]::Zero)
+    # Written in decimal on purpose. PowerShell reads the literal 0xC0000000 as
+    # the NEGATIVE Int32 -1073741824, which cannot become the UInt32 the call
+    # takes: the call threw, and the bell never rang, on any PowerShell version.
+    [uint32]$access = 3221225472
+    $handle = [Kernel32]::CreateFileW("CONOUT$", $access, 2, [IntPtr]::Zero, 3, 0, [IntPtr]::Zero)
     if ($handle -eq [IntPtr]::new(-1)) { return $false }
-    $written = 0
+    [uint32]$written = 0
     $ok = [Kernel32]::WriteConsoleW($handle, "`a", 1, [ref]$written, [IntPtr]::Zero)
     [Kernel32]::CloseHandle($handle) | Out-Null
     return $ok
@@ -51,13 +55,16 @@ if ([Kernel32]::AttachConsole(-1)) {
 
 # Strategy 2: walk the process tree to find an ancestor with a console
 try {
-    $pid = $PID
+    # The loop variable must not be named after PowerShell's automatic PID
+    # variable: that one is read-only, the assignment threw, the catch below
+    # swallowed it, and this walk never ran.
+    $cur = $PID
     for ($i = 0; $i -lt 20; $i++) {
-        $proc = Get-CimInstance Win32_Process -Filter "ProcessId = $pid" -ErrorAction Stop
+        $proc = Get-CimInstance Win32_Process -Filter "ProcessId = $cur" -ErrorAction Stop
         if (-not $proc -or -not $proc.ParentProcessId) { break }
-        $pid = $proc.ParentProcessId
-        if ($pid -le 4) { break }
-        if ([Kernel32]::AttachConsole($pid)) {
+        $cur = $proc.ParentProcessId
+        if ($cur -le 4) { break }
+        if ([Kernel32]::AttachConsole($cur)) {
             if (Write-Bel) { exit 0 }
             [Kernel32]::FreeConsole() | Out-Null
         }

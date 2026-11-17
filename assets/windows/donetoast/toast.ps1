@@ -73,7 +73,10 @@ if ($file) {
   ReadState | Out-Null
 }
 
-if (-not $Preview) { Add-Content -Encoding UTF8 "$PSScriptRoot\toast.log" "$(Get-Date -Format s) [$($script:cur.state)] $($script:cur.title) | $($script:cur.message)" }
+# anotifier: upstream appended every card's title and message to toast.log beside this
+# script. That is the text of the user's notifications — for Claude Code, the agent's own
+# words — written into the install directory, where a package build would pick it up.
+# Nothing is logged here; delivery failures are recorded by anotifier in ~/.anotifier/errors.log.
 
 # Stacking: take the first free slot (slots stack upward from the taskbar with no gaps)
 $mutex = $null; $slot = 0

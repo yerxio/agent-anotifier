@@ -17,7 +17,9 @@ graphify-out/
 __pycache__/
 *.pyc
 
-# donetoast runtime artifacts, written next to the vendored scripts
+# donetoast runtime artifacts, written next to the vendored scripts by its
+# live-progress and -Command modes (anotifier uses neither). toast.log is no
+# longer written at all; the rule stays for a copy left by an older checkout.
 assets/windows/donetoast/toast.log
 assets/windows/donetoast/jobs/
 assets/windows/donetoast/progress/

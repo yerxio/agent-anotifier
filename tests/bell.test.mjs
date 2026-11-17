@@ -38,9 +38,9 @@ describe('sendBellWindows — Windows-only (fails if not on win32)', () => {
     assert.equal(typeof result, 'boolean'); // smoke-level: script ran without throwing (audible BEL not observable here)
   });
 
-  it('returns false when pwsh is unavailable', async (t) => {
-    if (platform === 'win32') return t.skip('pwsh is available on Windows');
-    // On non-Windows, pwsh may not exist or the script path is wrong
+  it('returns false when Windows PowerShell is unavailable', async (t) => {
+    if (platform === 'win32') return t.skip('powershell.exe ships with Windows');
+    // On non-Windows there is no powershell.exe to spawn
     const result = await sendBellWindows();
     assert.equal(result, false);
   });
@@ -109,5 +109,32 @@ describe('bell config gating — dispatch condition logic', () => {
 
   it('bell fires when per-event terminalBellEnabled is true', () => {
     assert.equal(shouldBell({ terminalBell: { enabled: true } }, { terminalBellEnabled: true }), true);
+  });
+});
+
+// bell.ps1 never rang on Windows: PowerShell reads 0xC0000000 as a negative
+// Int32, which cannot become the UInt32 CreateFileW takes, so the call threw.
+// And it was spawned through pwsh, which is not on every machine.
+import fsBell from 'node:fs';
+import pathBell from 'node:path';
+import { fileURLToPath as toPathBell } from 'node:url';
+
+describe('windows bell script', () => {
+  const root = pathBell.resolve(pathBell.dirname(toPathBell(import.meta.url)), '..');
+  const script = fsBell.readFileSync(pathBell.join(root, 'assets', 'windows', 'bell.ps1'), 'utf8');
+  const sender = fsBell.readFileSync(pathBell.join(root, 'src', 'bell.mjs'), 'utf8');
+
+  it('passes the access mask as a value PowerShell can convert to UInt32', () => {
+    assert.doesNotMatch(script, /CreateFileW\("CONOUT\$", 0xC0000000/);
+    assert.match(script, /\[uint32\]\$access = 3221225472/);
+  });
+
+  it('does not assign to the read-only automatic PID variable', () => {
+    assert.doesNotMatch(script, /^\s*\$pid\s*=/im);
+  });
+
+  it('is spawned through the PowerShell that ships with Windows', () => {
+    assert.match(sender, /execFile\('powershell\.exe'/);
+    assert.doesNotMatch(sender, /execFile\('pwsh'/);
   });
 });

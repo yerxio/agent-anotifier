@@ -100,7 +100,12 @@ anotifier's own setup owns the hooks), `claude-hook.ps1`, `claude-clear.cmd`,
 
 ## Runtime artifacts
 
-`toast.ps1` appends to `toast.log` next to itself, and the live-progress and
-`-Command` paths create `progress/` and `jobs/` there. anotifier only uses the
-one-shot card path, so in practice only `toast.log` appears. All three are
+None in normal use. Upstream's `toast.ps1` appended every card's title and
+message to a `toast.log` next to itself; that line is removed here, because it
+wrote the text of the user's notifications — for Claude Code, the agent's own
+words — into the install directory. Delivery failures are recorded by anotifier
+in `~/.anotifier/errors.log` instead.
+
+The live-progress and `-Command` modes still create `progress/` and `jobs/`
+next to the scripts. anotifier uses neither mode; both directories are
 gitignored.

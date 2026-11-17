@@ -9,9 +9,14 @@ import { execFailureReason, noteFailure } from './channel-failure.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BELL_SCRIPT = path.join(__dirname, '..', 'assets', 'windows', 'bell.ps1');
 
+// powershell.exe, not pwsh: bell.ps1 needs nothing newer than Windows
+// PowerShell 5.1, which every Windows has, while PowerShell 7 is a separate
+// install. Spawning pwsh made the bell silently fail for Codex, Gemini and
+// Cursor on any machine without it (Claude Code rings through its own
+// terminalSequence and never came here).
 export async function sendBellWindows() {
   return new Promise((resolve) => {
-    execFile('pwsh', [
+    execFile('powershell.exe', [
       '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', BELL_SCRIPT,
     ], { timeout: 5000 }, (err) => {
       if (err) noteFailure('bell', execFailureReason(err));

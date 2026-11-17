@@ -270,3 +270,11 @@ test('the bundle still exposes and renders the explicit acknowledgement control'
   assert.match(toast, /add_Click\(\{ & \$close \}\)/);
   assert.match(launcher, /\$AcknowledgeLabel/);
 });
+
+test('the card writes no log of what it showed', () => {
+  // Upstream appended each card's title and message to toast.log beside the
+  // script: notification text, written into the install directory.
+  const toast = fs.readFileSync(path.join(donetoastDir, 'toast.ps1'), 'utf8');
+  assert.doesNotMatch(toast, /Add-Content[^\n]*toast\.log/);
+  assert.equal(fs.existsSync(path.join(donetoastDir, 'toast.log')), false, 'no log file ships with the bundle');
+});
