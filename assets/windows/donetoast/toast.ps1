@@ -20,6 +20,8 @@ param(
   [string]$AcknowledgeLabel = '',
   [string]$Duration = '',
   [string]$Label = '',
+  [string]$FocusLabel = '',
+  [int64]$Hwnd = 0,
   [string]$Sound = '',
   [switch]$Silent,
   [string]$Icon = '',
@@ -40,7 +42,8 @@ Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase
 # text column's right inset moves, to clear the button.
 $cardWidth = 480
 $cardHeight = 160
-$contentRight = if ($AcknowledgeLabel) { 92 } else { 12 }
+$showJump = [bool]($FocusLabel -and $Hwnd -gt 0)
+$contentRight = if ($showJump) { 112 } elseif ($AcknowledgeLabel) { 92 } else { 12 }
 
 # Current content: title, message, percent (-1 = unknown) and state (done | failed | waiting | running)
 $script:cur = @{ title = $Title; message = $Message; percent = $Percent
@@ -159,10 +162,20 @@ if (-not $Icon) { $Icon = "$PSScriptRoot\icons\$($App.ToLowerInvariant()).png"; 
         </Grid>
       </Grid>
 
-      <Button x:Name="Acknowledge" Content="$AcknowledgeLabel" Visibility="$(if ($AcknowledgeLabel) { 'Visible' } else { 'Collapsed' })"
-              HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0" Padding="11,6"
-              Background="#18212B" Foreground="#D7DEE8" BorderBrush="#45505E" BorderThickness="1"
-              FontFamily="Segoe UI" FontSize="12.5" Cursor="Hand" AutomationProperties.Name="$AcknowledgeLabel"/>
+      <!-- anotifier: the "jump to window" button (shown only with a captured
+           handle) sits above the acknowledgement button; both are stretched to
+           the same width. The card body itself does nothing — dismissal is the
+           acknowledgement button's job alone. -->
+      <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0">
+        <Button x:Name="Jump" Content="$FocusLabel" Visibility="$(if ($showJump) { 'Visible' } else { 'Collapsed' })"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,0,6" Padding="11,6"
+                Background="#18212B" Foreground="#D7DEE8" BorderBrush="#45505E" BorderThickness="1"
+                FontFamily="Segoe UI" FontSize="12.5" Cursor="Hand" AutomationProperties.Name="$FocusLabel"/>
+        <Button x:Name="Acknowledge" Content="$AcknowledgeLabel" Visibility="$(if ($AcknowledgeLabel) { 'Visible' } else { 'Collapsed' })"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="11,6"
+                Background="#18212B" Foreground="#D7DEE8" BorderBrush="#45505E" BorderThickness="1"
+                FontFamily="Segoe UI" FontSize="12.5" Cursor="Hand" AutomationProperties.Name="$AcknowledgeLabel"/>
+      </StackPanel>
 
       <!-- progress: 2 px bar along the bottom edge -->
       <Border x:Name="Track" Height="2" VerticalAlignment="Bottom" Background="#12FFFFFF" Visibility="Collapsed" IsHitTestVisible="False">
@@ -174,7 +187,7 @@ if (-not $Icon) { $Icon = "$PSScriptRoot\icons\$($App.ToLowerInvariant()).png"; 
 "@
 
 $w = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xaml))
-$el = @{}; foreach ($n in 'Card', 'Slide', 'Glow', 'Glyph', 'Header', 'Clock', 'TitleText', 'MessageText', 'Avatar', 'Track', 'Bar', 'Acknowledge') { $el[$n] = $w.FindName($n) }
+$el = @{}; foreach ($n in 'Card', 'Slide', 'Glow', 'Glyph', 'Header', 'Clock', 'TitleText', 'MessageText', 'Avatar', 'Track', 'Bar', 'Jump', 'Acknowledge') { $el[$n] = $w.FindName($n) }
 
 # anotifier: show the card on EVERY virtual desktop.
 # Windows assigns an ordinary top-level window to the desktop it opened on, so a
@@ -340,6 +353,38 @@ $close = {
   Animate $el.Slide ([Windows.Media.TranslateTransform]::XProperty) $cardWidth 260 { $w.Close() }
 }
 
+# anotifier: bring the agent's window (-Hwnd, captured at turn-start) to the
+# front. Activating a window on another virtual desktop makes Windows switch to
+# that desktop, which is the point: the card shows on every desktop, the agent
+# lives on one. Run here, in the card's own process, because the clicked card
+# is the foreground window and so is allowed to hand focus over.
+$focusWindow = {
+  if ($Hwnd -le 0) { return }
+  try {
+    if (-not ([System.Management.Automation.PSTypeName]'AANJump').Type) {
+      Add-Type -ErrorAction Stop -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class AANJump {
+  [DllImport("user32.dll")] static extern bool IsWindow(IntPtr h);
+  [DllImport("user32.dll")] static extern bool IsIconic(IntPtr h);
+  [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int n);
+  [DllImport("user32.dll")] static extern void SwitchToThisWindow(IntPtr h, bool alt);
+  [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr h);
+  public static void Go(long handle) {
+    IntPtr h = new IntPtr(handle);
+    if (!IsWindow(h)) return;             // closed since it was captured: nothing to do
+    if (IsIconic(h)) ShowWindow(h, 9);    // SW_RESTORE, if minimized
+    SwitchToThisWindow(h, true);          // switches virtual desktop and activates
+    SetForegroundWindow(h);
+  }
+}
+'@
+    }
+    [AANJump]::Go([int64]$Hwnd)
+  } catch {}
+}
+
 # Live card: poll the state file once a second (a file-time check; the file is only read when it changed)
 $script:poll = $null
 function Finish {
@@ -367,6 +412,11 @@ if ($Id) {
 }
 
 $w.add_MouseLeftButtonUp({
+  # anotifier: an acknowledgement-button card dismisses only through its
+  # buttons — a click on the card body does nothing, so a stray click cannot
+  # lose a notification. Upstream's bare card (no button) still dismisses on a
+  # body click.
+  if ($AcknowledgeLabel) { return }
   if ($Id -and $script:poll) {
     # Running job: hide this card but keep following it; a new card shows up when it ends. Anything else: dismiss.
     if ($script:cur.state -eq 'running') { New-Item -ItemType File -Force "$dir\$Id.muted" | Out-Null }
@@ -374,6 +424,7 @@ $w.add_MouseLeftButtonUp({
   }
   & $close
 })
+if ($showJump) { $el.Jump.add_Click({ & $focusWindow; & $close }) }
 if ($AcknowledgeLabel) { $el.Acknowledge.add_Click({ & $close }) }
 $w.add_MouseEnter({ $el.Glow.BeginAnimation([Windows.UIElement]::OpacityProperty, (New-Object Windows.Media.Animation.DoubleAnimation(0.5, [Windows.Duration]::new([TimeSpan]::FromMilliseconds(300))))) })
 $w.add_MouseLeave({ $el.Glow.BeginAnimation([Windows.UIElement]::OpacityProperty, (New-Object Windows.Media.Animation.DoubleAnimation(0, [Windows.Duration]::new([TimeSpan]::FromMilliseconds(300))))) })

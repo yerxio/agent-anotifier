@@ -41,6 +41,17 @@ not derived from the content or from `-AcknowledgeLabel`: one geometry keeps the
 stack gap-free and leaves a single layout to maintain. The progress bar follows
 `$cardWidth` instead of a hard-coded 283.
 
+### Jump to the agent's window
+
+`-FocusLabel <text>` and `-Hwnd <n>` on both scripts add a button (above the
+acknowledgement button) that activates window `<n>` and closes the card.
+Activating a window on another virtual desktop makes Windows switch to that
+desktop, so the button both focuses the window and takes the user to it — it is
+window-level, not tab-level. `src/platforms/windows.mjs` passes the handle that
+`src/agent-window.mjs` captured at prompt-submit. With buttons present, a click
+on the card body does nothing (upstream's bare card still dismisses on a body
+click); dismissal is the acknowledgement button's job.
+
 ### The hook's name in the header
 
 `-Label <text>` on both scripts. Upstream's header ends in a word for the card's

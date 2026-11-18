@@ -6,6 +6,7 @@ import { getConfigDir } from '../src/config-loader.mjs';
 import { unpatchAll, unpatchClaudeApproval } from '../setup/patch-config.mjs';
 import { execFileSync } from 'node:child_process';
 import { removeTurnState } from '../src/turn-timer.mjs';
+import { removeAgentWindows } from '../src/agent-window.mjs';
 import { c, spinner } from './ui.mjs';
 
 // The only tool labels an uninstall_result may carry; anything else is "other".
@@ -77,6 +78,7 @@ export async function run() {
   // tool config, so it is reported on its own lines and stays out of the
   // uninstall_result stats.
   const turnState = removeTurnState(getConfigDir());
+  removeAgentWindows(getConfigDir());
   spin.stop('Processed all tools');
 
   let anyFailed = false;

@@ -161,6 +161,11 @@ async function sendDonetoast(notification, { execFileImpl, log, ...soundDeps }) 
   ];
   if (card.duration) args.push('-Duration', card.duration);
   if (card.label) args.push('-Label', card.label);
+  // The "jump to window" button, when turn-start captured a window for this
+  // session (src/agent-window.mjs). The card activates it on click, which
+  // switches to its virtual desktop.
+  const hwnd = Number.isInteger(notification.focusHwnd) && notification.focusHwnd > 0 ? notification.focusHwnd : 0;
+  if (hwnd) args.push('-FocusLabel', '跳转窗口', '-Hwnd', String(hwnd));
   const stateFlag = STATE_FLAG[cardState(notification)];
   if (stateFlag) args.push(stateFlag);
   args.push(...await cardSoundArgs(notification, { log, ...soundDeps }));

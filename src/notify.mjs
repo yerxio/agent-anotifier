@@ -18,6 +18,7 @@ import { maybeNotifyUpdate } from './update-check.mjs';
 import { isSuppressed } from './suppress.mjs';
 import { runScoped } from './channel-failure.mjs';
 import { recordTurnStart, finishTurn, supportsTurnTiming, isBelowMinDuration } from './turn-timer.mjs';
+import { recordAgentWindow, readAgentWindow } from './agent-window.mjs';
 
 // Some tools (Cursor) fire the same hook twice simultaneously. Exclusive file
 // creation is the atomic lock that lets only one invocation notify. The key
@@ -195,6 +196,9 @@ export async function main({ focus } = {}) {
     // that could not be recorded just means that turn has no duration.
     if (event.event === 'turn_start') {
       recordTurnStart(event);
+      // Windows only: note the window the user just typed into, for the card's
+      // "jump to window" button. Detached, so it adds nothing to this path.
+      recordAgentWindow(event);
       process.stdout.write(defaultResponseBody(event.source), () => process.exit(0));
       return;
     }
@@ -272,6 +276,11 @@ export async function main({ focus } = {}) {
     }
 
     const notification = route(event, config);
+    // The window the user drives this session's agent from, captured at
+    // turn-start. The Windows card offers a button that focuses it, which
+    // switches to its virtual desktop; every other channel ignores the field.
+    // 0 when there is no usable capture, and then the card shows no such button.
+    if (notification) notification.focusHwnd = readAgentWindow(event);
     if (!notification) {
       // A hook fired an event we don't map to any notification. That's either
       // wiring pointed at the wrong event or a tool's new event type — say so

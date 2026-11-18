@@ -17,6 +17,8 @@
 #   -Label 'Stop' (anotifier) -> shown in the card header in place of the state word
 #     ("done", "needs you"): the name of the hook that raised the card.
 #   -Duration '4m 12s' (anotifier) -> shown in the card header after that.
+#   -FocusLabel '跳转窗口' -Hwnd <n> (anotifier) -> add a button that activates window <n>
+#     (switching to its virtual desktop) and closes the card.
 #   -Sound IM | Reminder | C:\path\done.wav (anotifier) -> play that instead of the card's own chime;
 #     -Silent -> play nothing (the caller is playing its own audio).
 # When called from a sandboxed agent, run it with the sandbox off, or the card can't reach your desktop.
@@ -34,6 +36,8 @@ param(
   [string]$AcknowledgeLabel = '',
   [string]$Duration = '',
   [string]$Label = '',
+  [string]$FocusLabel = '',
+  [int64]$Hwnd = 0,
   [string]$Sound = '',
   [switch]$Silent,
   [switch]$Info,
@@ -72,7 +76,8 @@ if (-not $Id) {
   $dur = if ($Duration) { " -Duration $(& $dec $Duration)" } else { '' }
   $snd = if ($Silent) { ' -Silent' } elseif ($Sound) { " -Sound $(& $dec $Sound)" } else { '' }
   $lbl = if ($Label) { " -Label $(& $dec $Label)" } else { '' }
-  return "started pid=$(Launch "& '$root\toast.ps1' -Title $(& $dec $Title) -Message $(& $dec "$Message") -App $(& $dec $App)$f$ack$dur$snd$lbl")"
+  $jmp = if ($FocusLabel -and $Hwnd -gt 0) { " -FocusLabel $(& $dec $FocusLabel) -Hwnd $Hwnd" } else { '' }
+  return "started pid=$(Launch "& '$root\toast.ps1' -Title $(& $dec $Title) -Message $(& $dec "$Message") -App $(& $dec $App)$f$ack$dur$snd$lbl$jmp")"
 }
 
 # Live card: write the state file; open a card only if none is showing for this id yet

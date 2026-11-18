@@ -356,3 +356,33 @@ test('the label reaches the card and replaces the state word in its header', asy
   // the state word: its state changes while it is on screen.
   assert.match(toast, /\$word = if \(\$Label -and -not \$Id\) \{ \$Label \} else \{ \$l\[2\] \}/);
 });
+
+test('a captured window adds the jump button; its absence leaves only 知道了', async () => {
+  const withWin = capture();
+  await sendToast({ title: 'p', message: 'done', source: 'claude', event: 'task_complete', focusHwnd: 133604 }, withWin.deps);
+  assert.equal(argOf(withWin.seen.args, '-Hwnd'), '133604');
+  assert.equal(argOf(withWin.seen.args, '-FocusLabel'), '跳转窗口');
+
+  for (const bad of [undefined, 0, -1, 1.5, 'x']) {
+    const c = capture();
+    await sendToast({ title: 'p', message: 'done', source: 'claude', event: 'task_complete', focusHwnd: bad }, c.deps);
+    assert.ok(!c.seen.args.includes('-Hwnd'), String(bad));
+    assert.ok(!c.seen.args.includes('-FocusLabel'), String(bad));
+  }
+});
+
+test('the card jumps on the button, and the body click does nothing', () => {
+  const toast = fs.readFileSync(path.join(donetoastDir, 'toast.ps1'), 'utf8');
+  const launcher = fs.readFileSync(path.join(donetoastDir, 'donetoast.ps1'), 'utf8');
+  // The jump button focuses the handle, then closes; acknowledge only closes.
+  assert.match(toast, /\$el\.Jump\.add_Click\(\{ & \$focusWindow; & \$close \}\)/);
+  assert.match(toast, /\$el\.Acknowledge\.add_Click\(\{ & \$close \}\)/);
+  // Activating the window switches virtual desktop; it runs in the card's process.
+  assert.match(toast, /SwitchToThisWindow/);
+  assert.match(toast, /SetForegroundWindow/);
+  // A click on the body of a card that has buttons is a no-op.
+  assert.match(toast, /if \(\$AcknowledgeLabel\) \{ return \}/);
+  // The launcher forwards both parts, and only together.
+  assert.match(launcher, /\$FocusLabel -and \$Hwnd -gt 0/);
+  assert.match(launcher, /-FocusLabel \$\(& \$dec \$FocusLabel\) -Hwnd \$Hwnd/);
+});
